@@ -7,26 +7,27 @@ class Fragment(BaseModel):
     """
     A class representing a fragment of document/media.
     """
-    id: str = Field(..., description="Unique identifier for the fragment.")
+    id: str = Field(
+        default_factory=lambda: str(uuid4()),
+        description="Unique identifier for the fragment.")
     metadata: Dict[str, Any] = Field(
         ..., description="Metadata associated with the fragment."
     )
 
-    def __init__(self, **kwargs):
-        """
-        Initialize the Fragment instance.
-        """
-        if not kwargs.get("id"):
-            kwargs["id"] = str(uuid4())
-        super().__init__(**kwargs)
+class Document(Fragment):
+    pass
 
+class SearchDocument(Fragment):
+    pass
 
 class Operation(BaseModel):
     """
     A class representing an operation to be performed on one or more fragments and 
     generating one or more new fragments
     """
-    id: str = Field(..., description="Unique identifier for the operation.")
+    id: str = Field(
+        default_factory=lambda: str(uuid4()),
+        description="Unique identifier for the operation.")
     name: str = Field(..., description="Type of the operation.")
     parameters: List[Fragment] = Field(
         ..., description="Parameters for the operation."
