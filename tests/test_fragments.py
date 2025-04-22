@@ -6,6 +6,7 @@ from az_ai.ingestion import Fragment
 def fragment():
     return Fragment(
         id="fragment_1",
+        label="md",
         metadata={"key": "value"},
     )
 

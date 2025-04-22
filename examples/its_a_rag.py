@@ -12,7 +12,7 @@ ingestion = az_ai.ingestion.Ingestion()
 @ingestion.operation()
 def apply_document_intelligence(
     document: Document,
-) -> Annotated[Fragment, {"type":"di_result"}]:
+) -> Annotated[Fragment, "di_result"]:
     """
     Get the PDF and apply DocumentIntelligence
     Generate a fragment containing DocumentIntelligenceResult and Markdown
@@ -22,8 +22,8 @@ def apply_document_intelligence(
 
 @ingestion.operation()
 def extract_figures(
-    fragment: Annotated[Fragment, {"type":"di_result"}],
-) -> Annotated[Fragment, {"type":"figure"}]:
+    fragment: Annotated[Fragment, {"label": "di_result"}],
+) -> Annotated[Fragment, "figure"]:
     """
     1. Process every figure in the "di_result" fragment, extract the figure from
     its bounding box.
@@ -35,8 +35,8 @@ def extract_figures(
 
 @ingestion.operation()
 def split_markdown(
-    fragment: Annotated[Fragment, {"type":"di_result"}],
-) -> Annotated[list[Fragment], {"type":"md"}]:
+    fragment: Annotated[Fragment, {"label": "di_result"}],
+) -> Annotated[list[Fragment], "md"]:
     """
     1. Split the Markdown in the "di_result" fragment into multiple fragments.
     2. Create a new Markdown fragment for each split.
@@ -46,7 +46,7 @@ def split_markdown(
 
 @ingestion.operation()
 def embedded(
-    fragment: Annotated[Fragment, {"type" : ["figure", "md"]}],
+    fragment: Annotated[Fragment, {"label": ["md", "figure"]}],
 ) -> SearchDocument:
     """
     For each figures or MD fragment create an embedding fragment
@@ -55,12 +55,11 @@ def embedded(
 
 
 
-for operation in ingestion.operations().values():
-    print(f"Operation: {operation.name}")
-    print(f"  Input: {operation.input.model_dump()})")
-    print(f"  Output: ({operation.output.model_dump()}")
-    print()
-
+print("Mermaid:")
+with open("examples/its_a_rag.md", "w") as f:
+    f.write("```mermaid\n---\ntitle: It's a RAG Ingestion Pipeline\n---\n")
+    f.write(ingestion.mermaid())
+    f.write("\n```")
 
 # execute the ingestion pipeline
 ingestion(file="example.pdf")

@@ -12,7 +12,7 @@ ingestion = az_ai.ingestion.Ingestion()
 @ingestion.operation()
 def apply_document_intelligence(
     document: Document,
-) -> Annotated[Fragment, {"type": "di_result"}]:
+) -> Annotated[Fragment, "di_result"]:
     """
     Get the PDF and apply DocumentIntelligence
     Generate a fragment containing DocumentIntelligenceResult and Markdown

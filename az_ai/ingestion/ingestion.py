@@ -1,10 +1,26 @@
 import logging
 import inspect
-from typing import Callable, TypeVar, Any, get_args, get_type_hints, get_origin, List, Annotated
+
+from typing import (
+    Callable,
+    TypeVar,
+    Any,
+    get_args,
+    get_type_hints,
+    get_origin,
+    List,
+    Annotated,
+)
 
 from rich.console import Console
 
-from az_ai.ingestion.schema import Fragment, OperationInfo, CommandFunctionType, OperationInput, OperationOutput
+from az_ai.ingestion.schema import (
+    Fragment,
+    OperationInfo,
+    CommandFunctionType,
+    OperationInput,
+    OperationOutput,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -13,10 +29,9 @@ class OperationError(Exception):
     pass
 
 
-
 class Ingestion:
     def __init__(self):
-        self._operations : dict[str, OperationInfo] = {}
+        self._operations: dict[str, OperationInfo] = {}
 
     def operation(self) -> Callable[[CommandFunctionType], CommandFunctionType]:
         def decorator(func: CommandFunctionType) -> CommandFunctionType:
@@ -25,18 +40,22 @@ class Ingestion:
             return func
 
         return decorator
-    
+
     def operations(self) -> dict[str, OperationInfo]:
         """
         Get the list of registered operations.
         """
         return self._operations
-    
+
     def __call__(self, *args, **kwargs):
         console = Console()
-        console.print(f"Run ingestion pipeline with args: {kwargs}", )
+        console.print(
+            f"Run ingestion pipeline with args: {kwargs}",
+        )
         for operation in self.operations().values():
-            console.print(f"  Run [bold]{operation.name}[/]...", )
+            console.print(
+                f"  Run [bold]{operation.name}[/]...",
+            )
             operation(1)
 
     def _parse_signature(self, func: CommandFunctionType) -> OperationInfo:
@@ -47,11 +66,10 @@ class Ingestion:
 
         type_hints = get_type_hints(func)
         signature = inspect.signature(func)
-        
 
         input = self._parse_parameters(func, type_hints, signature)
-        output = self._parse_return_type(func, type_hints, signature) 
-            
+        output = self._parse_return_type(func, type_hints, signature)
+
         return OperationInfo(
             name=func.__name__,
             func=func,
@@ -63,7 +81,7 @@ class Ingestion:
         self,
         func: CommandFunctionType,
         type_hints: dict[str, Any],
-        signature: inspect.Signature,            
+        signature: inspect.Signature,
     ):
         if len(signature.parameters) != 1:
             raise OperationError("Operation function must have exactly 1 parameter.")
@@ -85,13 +103,12 @@ class Ingestion:
                 raise OperationError(
                     f"Operation function parameter {param_name} must be of type Fragment not {param_type}"
                 )
-            input =OperationInput(
+            input = OperationInput(
                 name=param_name,
-                input_type=param_type,
+                fragment_type=param_type,
                 filter=filter,
             )
         return input
-
 
     def _parse_return_type(
         self,
@@ -103,18 +120,17 @@ class Ingestion:
         Parse the return type of the function to extract its parameters and return type
         """
         logger.debug("Parsing return type for %s...", func.__name__)
-
+        label = None
         return_annotation = signature.return_annotation
         if return_annotation is inspect.Signature.empty:
             raise OperationError(
                 f"Operation function {func.__name__} must have a return type annotation."
             )
-        metadata = {}
         if get_origin(return_annotation) is Annotated:
-            return_annotation, metadata = get_args(return_annotation)
-            if not isinstance(metadata, dict):
+            return_annotation, label = get_args(return_annotation)
+            if not isinstance(label, str):
                 raise OperationError(
-                    f"Operation function return metadata must be a dict not {metadata}"
+                    f"Operation function return Fragment label must be a str not {label}"
                 )
 
         base_type = self._get_base_type(return_annotation)
@@ -122,6 +138,7 @@ class Ingestion:
         if hasattr(base_type, "__origin__"):
             if base_type.__origin__ is list:
                 multiple = True
+                base_type = get_args(base_type)[0]
             else:
                 raise OperationError(
                     f"Operation function {func.__name__} must have a return type of list[Fragment] or Fragment not {base_type}"
@@ -133,12 +150,12 @@ class Ingestion:
                 )
 
         output = OperationOutput(
-            output_type=base_type,
+            fragment_type=base_type,
             multiple=multiple,
-            metadata=metadata,
+            label=label,
         )
         return output
-    
+
     def _get_base_type(self, type_hint):
         """Extract the base type from regular or Annotated types."""
         origin = get_origin(type_hint)
@@ -146,3 +163,24 @@ class Ingestion:
             # For Annotated types, the first argument is the actual type
             return get_args(type_hint)[0]
         return type_hint
+
+    def mermaid(self) -> str:
+        """
+        Generate a mermaid diagram of the ingestion pipeline.
+        """
+        diagram = "flowchart TD\n"
+        fragment_specs = set()
+        for operation in self.operations().values():
+            fragment_specs.add(operation.output.spec())
+
+        for spec in fragment_specs:
+            fragment_label = spec.fragment_type.__name__
+            if spec.label:
+                fragment_label += f"[{spec.label}]"
+            diagram += f"""    {spec}["{fragment_label}"]\n"""
+
+        for operation in self.operations().values():
+            for spec in operation.input.specs():
+                diagram += f"""    {spec} -- "{operation.name}" --> {operation.output.spec()}\n"""
+
+        return diagram
