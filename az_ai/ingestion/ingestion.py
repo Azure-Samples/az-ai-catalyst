@@ -1,32 +1,45 @@
 import logging
 import inspect
-from typing import Callable, TypeVar, Any, get_args, get_type_hints
+from typing import Callable, TypeVar, Any, get_args, get_type_hints, get_origin, List, Annotated
 
 from rich.console import Console
 
+from az_ai.ingestion.schema import Fragment, OperationInfo, CommandFunctionType, OperationInput, OperationOutput
+
 logger = logging.getLogger(__name__)
 
-CommandFunctionType = TypeVar("CommandFunctionType", bound=Callable[..., Any])
 
-class TransformationError(Exception):
+class OperationError(Exception):
     pass
 
-class TransformationInfo:
-    """
-    A class representing a transformation function.
-    """
-    def __init__(self, func: CommandFunctionType):
-        self.func = func
 
-        self.parse_signature(func)
 
-    def name(self) -> str:
+class Ingestion:
+    def __init__(self):
+        self._operations : dict[str, OperationInfo] = {}
+
+    def operation(self) -> Callable[[CommandFunctionType], CommandFunctionType]:
+        def decorator(func: CommandFunctionType) -> CommandFunctionType:
+            logger.debug("Registering operation function %s...", func.__name__)
+            self._operations[func.__name__] = self._parse_signature(func)
+            return func
+
+        return decorator
+    
+    def operations(self) -> dict[str, OperationInfo]:
         """
-        Get the name of the transformation function
+        Get the list of registered operations.
         """
-        return self.func.__name__
+        return self._operations
+    
+    def __call__(self, *args, **kwargs):
+        console = Console()
+        console.print(f"Run ingestion pipeline with args: {kwargs}", )
+        for operation in self.operations().values():
+            console.print(f"  Run [bold]{operation.name}[/]...", )
+            operation(1)
 
-    def parse_signature(self, func: CommandFunctionType):
+    def _parse_signature(self, func: CommandFunctionType) -> OperationInfo:
         """
         Parse the signature of the function to extract its parameters and return type
         """
@@ -34,50 +47,102 @@ class TransformationInfo:
 
         type_hints = get_type_hints(func)
         signature = inspect.signature(func)
-        if len(signature.parameters) == 0:
-            raise TransformationError("Transformation function must have parameters.")
         
-        if signature.return_annotation is inspect.Signature.empty:
-            raise TransformationError("Transformation function must have a return type.")
-        
+
+        input = self._parse_parameters(func, type_hints, signature)
+        output = self._parse_return_type(func, type_hints, signature) 
+            
+        return OperationInfo(
+            name=func.__name__,
+            func=func,
+            input=input,
+            output=output,
+        )
+
+    def _parse_parameters(
+        self,
+        func: CommandFunctionType,
+        type_hints: dict[str, Any],
+        signature: inspect.Signature,            
+    ):
+        if len(signature.parameters) != 1:
+            raise OperationError("Operation function must have exactly 1 parameter.")
 
         for param in signature.parameters.values():
             param_name = param.name
-            param_type = type_hints.get(param_name, Any)
+            param_type = param.annotation
             logger.debug("Parameter: %s, Type: %s", param_name, param_type)
 
-            # Check if the parameter type is a generic typ
+            filter = {}
+            if get_origin(param_type) is Annotated:
+                param_type, filter = get_args(param_type)
+                if not isinstance(filter, dict):
+                    raise OperationError(
+                        f"Operation function parameter {param_name} filter must be a dict not {filter}"
+                    )
 
-            # If you want to handle specific types or do something with them,
-            # you can add your logic here.
-            # For example, if you want to check if the parameter is a Fragment:
-            # if param_type == Fragment:
-            #     logger.debug("This parameter is a Fragment.")
+            if not issubclass(param_type, Fragment):
+                raise OperationError(
+                    f"Operation function parameter {param_name} must be of type Fragment not {param_type}"
+                )
+            input =OperationInput(
+                name=param_name,
+                input_type=param_type,
+                filter=filter,
+            )
+        return input
+
+
+    def _parse_return_type(
+        self,
+        func: CommandFunctionType,
+        type_hints: dict[str, Any],
+        signature: inspect.Signature,
+    ) -> OperationOutput:
+        """
+        Parse the return type of the function to extract its parameters and return type
+        """
+        logger.debug("Parsing return type for %s...", func.__name__)
+
+        return_annotation = signature.return_annotation
+        if return_annotation is inspect.Signature.empty:
+            raise OperationError(
+                f"Operation function {func.__name__} must have a return type annotation."
+            )
+        metadata = {}
+        if get_origin(return_annotation) is Annotated:
+            return_annotation, metadata = get_args(return_annotation)
+            if not isinstance(metadata, dict):
+                raise OperationError(
+                    f"Operation function return metadata must be a dict not {metadata}"
+                )
+
+        base_type = self._get_base_type(return_annotation)
+        multiple = False
+        if hasattr(base_type, "__origin__"):
+            if base_type.__origin__ is list:
+                multiple = True
+            else:
+                raise OperationError(
+                    f"Operation function {func.__name__} must have a return type of list[Fragment] or Fragment not {base_type}"
+                )
+        else:
+            if not issubclass(base_type, Fragment):
+                raise OperationError(
+                    f"Operation function {func.__name__} must have a return type of Fragment not {base_type}"
+                )
+
+        output = OperationOutput(
+            output_type=base_type,
+            multiple=multiple,
+            metadata=metadata,
+        )
+        return output
     
-
-
-        # You can use inspect.signature(func) to get the actual signature
-        # and extract parameter names and types if needed.
-    
-
-    def __call__(self, *args, **kwargs):
-        return self.func(*args, **kwargs)
-
-class Ingestion:
-    def __init__(self):
-        self.transformations = []
-
-    def transformation(self) -> Callable[[CommandFunctionType], CommandFunctionType]:
-        def decorator(func: CommandFunctionType) -> CommandFunctionType:
-            logger.debug("Registering transformation function %s...", func.__name__)
-            self.transformations.append(TransformationInfo(func))
-            return func
-
-        return decorator
-    
-    def __call__(self, *args, **kwargs):
-        console = Console()
-        console.print(f"Run ingestion pipeline with args: {kwargs}", )
-        for transformation in self.transformations:
-            console.print(f"  Run [bold]{transformation.name()}[/]...", )
-            transformation(1)
+    def _get_base_type(self, type_hint):
+        """Extract the base type from regular or Annotated types."""
+        origin = get_origin(type_hint)
+        if origin is Annotated:
+            # For Annotated types, the first argument is the actual type
+            return get_args(type_hint)[0]
+        return type_hint

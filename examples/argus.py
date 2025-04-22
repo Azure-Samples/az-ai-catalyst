@@ -8,10 +8,11 @@ logging.basicConfig(level=logging.INFO)
 
 ingestion = az_ai.ingestion.Ingestion()
 
-@ingestion.transformation()
+
+@ingestion.operation()
 def apply_document_intelligence(
     document: Document,
-) -> Annotated[Fragment, "type":"di_result"]:
+) -> Annotated[Fragment, {"type": "di_result"}]:
     """
     Get the PDF and apply DocumentIntelligence
     Generate a fragment containing DocumentIntelligenceResult and Markdown

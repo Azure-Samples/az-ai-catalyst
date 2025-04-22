@@ -1,6 +1,7 @@
 from pydantic import BaseModel, Field
 from typing import Optional, List, Dict, Any
 from uuid import uuid4
+from typing import Callable, TypeVar, Any, get_args, get_type_hints, get_origin, List, Type, Generic
 
 
 class Fragment(BaseModel):
@@ -43,3 +44,46 @@ class Operation(BaseModel):
         if not kwargs.get("id"):
             kwargs["id"] = str(uuid4())
         super().__init__(**kwargs)
+
+
+#
+# Operations
+#
+
+CommandFunctionType = TypeVar("CommandFunctionType", bound=Callable[..., Any])
+
+class OperationInput(BaseModel):
+    """
+    A class representing the input to an operation function.
+    """
+    name: str = Field(..., description="Name of the input parameter.")
+    input_type: type[Fragment] = Field(..., description="Type of the input parameter.")
+    filter: Dict[str, Any] = Field(
+        ..., description="Filter for the input parameter."
+    )
+
+class OperationOutput(BaseModel):
+    """
+    A class representing the output of an operation function.
+    """
+    output_type: Any = Field(..., description="Type of the input parameter.") # TODO: get rid of Any
+    multiple: bool = Field(
+        ..., description="Whether the output parameter is multiple."
+    )
+    metadata: Dict[str, Any] = Field(
+        ..., description="Filter for the input parameter."
+    )
+
+class OperationInfo(BaseModel):
+    """
+    A class representing a operation function.
+    """
+    name: str = Field(..., description="Name of the operation function.")
+    input: OperationInput
+    output: OperationOutput
+    func: CommandFunctionType = Field(
+        ..., description="The operation function."
+    )
+
+    def __call__(self, *args, **kwargs):
+        return self.func(*args, **kwargs)
