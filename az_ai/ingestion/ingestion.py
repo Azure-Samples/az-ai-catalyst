@@ -21,6 +21,7 @@ from az_ai.ingestion.schema import (
     OperationInput,
     OperationOutput,
 )
+from az_ai.ingestion.repository import Repository
 
 logger = logging.getLogger(__name__)
 
@@ -30,8 +31,9 @@ class OperationError(Exception):
 
 
 class Ingestion:
-    def __init__(self):
+    def __init__(self, repository: Repository = None):
         self._operations: dict[str, OperationInfo] = {}
+        self._repository = repository
 
     def operation(self) -> Callable[[CommandFunctionType], CommandFunctionType]:
         def decorator(func: CommandFunctionType) -> CommandFunctionType:
@@ -53,10 +55,47 @@ class Ingestion:
             f"Run ingestion pipeline with args: {kwargs}",
         )
         for operation in self.operations().values():
-            console.print(
-                f"  Run [bold]{operation.name}[/]...",
-            )
-            operation(1)
+            specs = operation.input.specs()
+            for spec in specs:
+                fragments = self._repository.find(spec)
+                for fragment in fragments:
+                    console.print(
+                        f"  Found {fragment} fragment for {spec} running {operation.name} on it...",
+                    )
+                    result = operation.func(fragment)
+                    if not operation.output.multiple:
+                        result = [result]
+                    for res in result:
+                        console.print(
+                            f"  Storing {res} fragment for {operation.output.spec()}...",
+                        )
+                        self._repository.store(res)
+
+
+    def mermaid(self) -> str:
+        """
+        Generate a mermaid diagram of the ingestion pipeline.
+        """
+        diagram = "flowchart TD\n"
+        fragment_specs = set()
+        for operation in self.operations().values():
+            fragment_specs.add(operation.output.spec())
+        for spec in fragment_specs:
+            fragment_label = spec.fragment_type.__name__
+            if spec.label:
+                fragment_label += f"[{spec.label}]"
+            shape = "doc"
+            diagram += f"""    {spec}@{{ shape: {shape}, label: "{fragment_label}" }}\n"""
+
+        for operation in self.operations().values():
+            diagram += f"""    {operation.name}@{{ shape: rect, label: "{operation.name}" }}\n"""
+            diagram += f"""    {operation.name} --> {operation.output.spec()}\n"""
+            for spec in operation.input.specs():
+                diagram += f"""    {spec} --> {operation.name}\n"""
+
+        return diagram
+    
+    
 
     def _parse_signature(self, func: CommandFunctionType) -> OperationInfo:
         """
@@ -164,25 +203,4 @@ class Ingestion:
             return get_args(type_hint)[0]
         return type_hint
 
-    def mermaid(self) -> str:
-        """
-        Generate a mermaid diagram of the ingestion pipeline.
-        """
-        diagram = "flowchart TD\n"
-        fragment_specs = set()
-        for operation in self.operations().values():
-            fragment_specs.add(operation.output.spec())
-        for spec in fragment_specs:
-            fragment_label = spec.fragment_type.__name__
-            if spec.label:
-                fragment_label += f"[{spec.label}]"
-            shape = "doc"
-            diagram += f"""    {spec}@{{ shape: {shape}, label: "{fragment_label}" }}\n"""
 
-        for operation in self.operations().values():
-            diagram += f"""    {operation.name}@{{ shape: rect, label: "{operation.name}" }}\n"""
-            diagram += f"""    {operation.name} --> {operation.output.spec()}\n"""
-            for spec in operation.input.specs():
-                diagram += f"""    {spec} --> {operation.name}\n"""
-
-        return diagram

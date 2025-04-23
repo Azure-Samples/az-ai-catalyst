@@ -5,8 +5,8 @@ title: It's a RAG Ingestion Pipeline
 flowchart TD
     SearchDocument@{ shape: doc, label: "SearchDocument" }
     Fragment_md@{ shape: doc, label: "Fragment[md]" }
-    Fragment_di_result@{ shape: doc, label: "Fragment[di_result]" }
     Fragment_figure@{ shape: doc, label: "Fragment[figure]" }
+    Fragment_di_result@{ shape: doc, label: "Fragment[di_result]" }
     apply_document_intelligence@{ shape: rect, label: "apply_document_intelligence" }
     apply_document_intelligence --> Fragment_di_result
     Document --> apply_document_intelligence

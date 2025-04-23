@@ -1,3 +1,4 @@
+import json
 from typing import (
     Any,
     Callable,
@@ -13,7 +14,18 @@ from typing import (
 )
 from uuid import uuid4
 
-from pydantic import BaseModel, Field
+import pydantic_core
+from pydantic import (
+    BaseModel,
+    Field,
+    GetJsonSchemaHandler,
+    SerializationInfo,
+    SerializerFunctionWrapHandler,
+    model_serializer,
+)
+from pydantic.fields import FieldInfo
+from pydantic.json_schema import JsonSchemaValue
+from pydantic_core import CoreSchema
 
 
 class Fragment(BaseModel):
@@ -30,9 +42,77 @@ class Fragment(BaseModel):
         ..., description="Metadata associated with the fragment."
     )
 
+    # TODO: remove?
+    @classmethod
+    def __get_pydantic_json_schema__(
+        cls, core_schema: CoreSchema, handler: GetJsonSchemaHandler
+    ) -> JsonSchemaValue:
+        json_schema = handler(core_schema)
+        json_schema = handler.resolve_ref_schema(json_schema)
+
+        # inject class name to help with serde
+        if "properties" in json_schema:
+            json_schema["properties"]["type"] = {
+                "title": "Class Name",
+                "type": "string",
+                "default": cls.class_name(),
+            }
+        return json_schema
+
+    @classmethod
+    def class_name(cls) -> str:
+        """
+        Get the class name, used as a unique ID in serialization.
+
+        This provides a key that makes serialization robust against actual class
+        name changes.
+        """
+        return "Fragment"
+
+    @model_serializer(mode="wrap")
+    def custom_model_dump(
+        self, handler: SerializerFunctionWrapHandler, info: SerializationInfo
+    ) -> Dict[str, Any]:
+        data = handler(self)
+        data["type"] = self.class_name()
+        return data
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any], **kwargs: Any) -> "Fragment":
+        data = dict(data)
+
+        assert isinstance(data, dict)
+        data_type = data.pop("type")
+        if data_type is None:
+            raise ValueError("Need to specify type")
+
+        if isinstance(kwargs, dict):
+            data.update(kwargs)
+
+        if data_type == Fragment.__name__:
+            return Fragment(**data)
+
+        for sub in cls.all_subclasses():
+            if data_type == sub.__name__:
+                return sub(**data)
+        raise TypeError(f"Unsupport sub-type: {data_type}")
+
+    @classmethod
+    def from_json(cls, data_str: str, **kwargs: Any) -> "Fragment":  # type: ignore
+        data = json.loads(data_str)
+        return cls.from_dict(data, **kwargs)
+
+    @classmethod
+    def all_subclasses(cls):
+        return set(cls.__subclasses__()).union(
+            [s for c in cls.__subclasses__() for s in c.all_subclasses()]
+        )
+
 
 class Document(Fragment):
-    pass
+    @classmethod
+    def class_name(cls) -> str:
+        return "Document"
 
 
 class SearchDocument(Fragment):
@@ -80,8 +160,8 @@ class FragmentSpec(BaseModel, frozen=True):
         ..., description="Type of the input parameter."
     )
     label: str | None = Field(
-        default = None,
-        description="Label for the output parameter.", 
+        default=None,
+        description="Label for the output parameter.",
     )
 
     def __str__(self):
@@ -89,6 +169,7 @@ class FragmentSpec(BaseModel, frozen=True):
         if self.label:
             result += f"_{self.label}"
         return result
+
 
 class OperationInput(BaseModel):
     """
