@@ -172,15 +172,17 @@ class Ingestion:
         fragment_specs = set()
         for operation in self.operations().values():
             fragment_specs.add(operation.output.spec())
-
         for spec in fragment_specs:
             fragment_label = spec.fragment_type.__name__
             if spec.label:
                 fragment_label += f"[{spec.label}]"
-            diagram += f"""    {spec}["{fragment_label}"]\n"""
+            shape = "doc"
+            diagram += f"""    {spec}@{{ shape: {shape}, label: "{fragment_label}" }}\n"""
 
         for operation in self.operations().values():
+            diagram += f"""    {operation.name}@{{ shape: rect, label: "{operation.name}" }}\n"""
+            diagram += f"""    {operation.name} --> {operation.output.spec()}\n"""
             for spec in operation.input.specs():
-                diagram += f"""    {spec} -- "{operation.name}" --> {operation.output.spec()}\n"""
+                diagram += f"""    {spec} --> {operation.name}\n"""
 
         return diagram

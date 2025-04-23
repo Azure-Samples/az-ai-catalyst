@@ -23,7 +23,7 @@ def apply_document_intelligence(
 @ingestion.operation()
 def extract_figures(
     fragment: Annotated[Fragment, {"label": "di_result"}],
-) -> Annotated[Fragment, "figure"]:
+) -> Annotated[list[Fragment], "figure"]:
     """
     1. Process every figure in the "di_result" fragment, extract the figure from
     its bounding box.
@@ -55,7 +55,6 @@ def embedded(
 
 
 
-print("Mermaid:")
 with open("examples/its_a_rag.md", "w") as f:
     f.write("```mermaid\n---\ntitle: It's a RAG Ingestion Pipeline\n---\n")
     f.write(ingestion.mermaid())
