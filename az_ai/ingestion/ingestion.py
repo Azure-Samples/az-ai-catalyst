@@ -55,20 +55,17 @@ class Ingestion:
             f"Run ingestion pipeline with args: {kwargs}",
         )
         for operation in self.operations().values():
+            console.print(f"Running operation: {operation.name} ({len(self._repository.find())})...")
             specs = operation.input.specs()
             for spec in specs:
                 fragments = self._repository.find(spec)
                 for fragment in fragments:
-                    console.print(
-                        f"  Found {fragment} fragment for {spec} running {operation.name} on it...",
-                    )
+                    console.print(f"Running operation {operation.name} on fragment {fragment.id}...")
                     result = operation.func(fragment)
                     if not operation.output.multiple:
                         result = [result]
                     for res in result:
-                        console.print(
-                            f"  Storing {res} fragment for {operation.output.spec()}...",
-                        )
+                        console.print(f"Storing result {res.id}...")
                         self._repository.store(res)
 
 

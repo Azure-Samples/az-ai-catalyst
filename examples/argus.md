@@ -3,9 +3,9 @@
 title: Argus Ingestion Pipeline
 ---
 flowchart TD
-    Fragment_llm_result@{ shape: doc, label: "Fragment[llm_result]" }
-    Fragment_di_result@{ shape: doc, label: "Fragment[di_result]" }
     Fragment_evaluated_result@{ shape: doc, label: "Fragment[evaluated_result]" }
+    Fragment_di_result@{ shape: doc, label: "Fragment[di_result]" }
+    Fragment_llm_result@{ shape: doc, label: "Fragment[llm_result]" }
     apply_document_intelligence@{ shape: rect, label: "apply_document_intelligence" }
     apply_document_intelligence --> Fragment_di_result
     Document --> apply_document_intelligence

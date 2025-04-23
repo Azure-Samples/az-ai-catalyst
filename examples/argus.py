@@ -19,6 +19,7 @@ def apply_document_intelligence(
     """
     pass
 
+
 @ingestion.operation()
 def apply_llm_to_pages(
     fragment: Annotated[Fragment, {"label": "di_result"}],
@@ -51,4 +52,4 @@ with open("examples/argus.md", "w") as f:
     f.write("\n```")
 
 
-ingestion(file="example.pdf")
+#ingestion(file="example.pdf")

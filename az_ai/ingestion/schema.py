@@ -164,6 +164,16 @@ class FragmentSpec(BaseModel, frozen=True):
         description="Label for the output parameter.",
     )
 
+    def matches(self, fragment: Fragment) -> bool:
+        """
+        Check if the fragment matches the specification.
+        """
+        if not isinstance(fragment, self.fragment_type):
+            return False
+        if self.label and fragment.label != self.label:
+            return False
+        return True
+
     def __str__(self):
         result = f"{self.fragment_type.__name__}"
         if self.label:

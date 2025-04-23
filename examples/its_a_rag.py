@@ -6,6 +6,7 @@ from az_ai.ingestion import Document, Fragment, SearchDocument
 
 logging.basicConfig(level=logging.INFO)
 
+
 ingestion = az_ai.ingestion.Ingestion()
 
 
@@ -54,14 +55,13 @@ def embedded(
     pass
 
 
-
 with open("examples/its_a_rag.md", "w") as f:
     f.write("```mermaid\n---\ntitle: It's a RAG Ingestion Pipeline\n---\n")
     f.write(ingestion.mermaid())
     f.write("\n```")
 
 # execute the ingestion pipeline
-ingestion(file="example.pdf")
+# ingestion(file="example.pdf")
 
 
 # Other ideas:

@@ -1,9 +1,8 @@
 from abc import ABC, abstractmethod
+from pathlib import Path
 
 from az_ai.ingestion.schema import Fragment, FragmentSpec
 
-
-from pathlib import Path
 
 class Repository(ABC):
     @abstractmethod
@@ -19,6 +18,13 @@ class Repository(ABC):
 
 class FragmentNotFoundError(Exception):
     """Exception raised when a fragment is not found in the repository."""
+
+    pass
+
+
+class DuplicateFragmentError(Exception):
+    """Exception raised when a fragment with the same ID already exists in the repository."""
+
     pass
 
 
@@ -37,20 +43,22 @@ class LocalRepository(Repository):
         fragment_path = self._path / f"{reference}.json"
         if not fragment_path.exists():
             raise FragmentNotFoundError(f"Fragment {reference} not found.")
-        
+
         with open(fragment_path, "r") as f:
-            return Fragment.parse_raw(f.read())        
+            return Fragment.parse_raw(f.read())
 
     def store(self, fragment: Fragment) -> Fragment:
         """Store the given fragment."""
 
         fragment_path = self._path / f"{fragment.id}.json"
+        if fragment_path.exists():
+            raise DuplicateFragmentError(f"Fragment {fragment.id} already exists.")
         with open(fragment_path, "w") as f:
             f.write(fragment.json())
-        
+
         return fragment
-    
-    def find(self, spec: FragmentSpec) -> list[Fragment]:
+
+    def find(self, spec: FragmentSpec = None) -> list[Fragment]:
         """
         Get all fragments matching the given spec.
         """
@@ -58,7 +66,7 @@ class LocalRepository(Repository):
         for fragment_path in self._path.glob("*.json"):
             with open(fragment_path, "r") as f:
                 fragment = Fragment.from_json(f.read())
-                if isinstance(fragment, spec.fragment_type):
+                if spec is None or spec.matches(fragment):
                     fragments.append(fragment)
-        
+
         return fragments
