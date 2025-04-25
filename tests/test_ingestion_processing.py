@@ -2,7 +2,7 @@ from pathlib import Path
 from typing import Annotated
 import pytest
 
-from az_ai.ingestion import Ingestion,Fragment, Document
+from az_ai.ingestion import Ingestion,Fragment, Document, OperationError
 from az_ai.ingestion.repository import FragmentNotFoundError, LocalRepository
 
 
@@ -102,3 +102,21 @@ def test_double_ingestion(two_step_ingestion, empty_repository, document):
 
 
     assert len(empty_repository.find()) == 3
+
+
+def test_return_is_compliant_with_signtaure(empty_repository, document):
+    ingestion = Ingestion(repository=empty_repository)
+    empty_repository.store(document)
+    
+    @ingestion.operation()
+    def simple(input: Document) -> Annotated[Fragment, "expected_label"]:
+        return Fragment(
+            id="output_id",
+            label="wrong_label",
+            metadata=input.metadata | { "extra_key": "extra_value" },
+        )
+
+    with pytest.raises(OperationError) as excinfo:
+        ingestion()
+
+    assert "Non compliant Fragment returned" in str(excinfo.value)

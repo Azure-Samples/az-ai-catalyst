@@ -51,22 +51,29 @@ class Ingestion:
 
     def __call__(self, *args, **kwargs):
         console = Console()
-        console.print(
+        console.log(
             f"Run ingestion pipeline with args: {kwargs}",
         )
-        for operation in self.operations().values():
-            console.print(f"Running operation: {operation.name} ({len(self._repository.find())})...")
-            specs = operation.input.specs()
-            for spec in specs:
-                fragments = self._repository.find(spec)
-                for fragment in fragments:
-                    console.print(f"Running operation {operation.name} on fragment {fragment.id}...")
-                    result = operation.func(fragment)
-                    if not operation.output.multiple:
-                        result = [result]
-                    for res in result:
-                        console.print(f"Storing result {res.id}...")
-                        self._repository.store(res)
+        with console.status("Running ingestion pipeline...") as status:
+            for operation in self.operations().values():
+                status.update(f"Running operation: {operation.name} ({len(self._repository.find())})...", spinner="dots")
+                specs = operation.input.specs()
+                output_spec = operation.output.spec()
+                for spec in specs:
+                    fragments = self._repository.find(spec)
+                    for fragment in fragments:
+                        status.update(f"Running operation {operation.name} on fragment {fragment.id}...", spinner="dots")
+                        result = operation.func(fragment)
+                        if not operation.output.multiple:
+                            result = [result]
+                        for res in result:
+                            if not output_spec.matches(res):
+                                console.log(f"Result {res.id} does not match output spec {output_spec}")
+                                raise OperationError(
+                                    f"Non compliant Fragment returned for operation {operation.name}: {fragment}"
+                                )
+                            console.log(f"Storing result {res.id}...")
+                            self._repository.store(res)
 
 
     def mermaid(self) -> str:

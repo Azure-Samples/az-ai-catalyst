@@ -73,7 +73,7 @@ def test_document_operation_annotated(ingestion):
     assert op.output.fragment_type == Document
     assert op.output.multiple is False
     assert op.output.label == "text"
-
+    
 def test_fragment_operation(ingestion):
     op = ingestion.operations()["fragment_op"]
     

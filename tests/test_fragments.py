@@ -11,6 +11,9 @@ def fragment():
     )
 
 
+def test_fragment_human_name(fragment):
+    assert fragment.human_name() == "md/fragment_1"
+
 def test_fragment_initialization(fragment):
     assert fragment.id == "fragment_1"
     assert fragment.metadata == {"key": "value"}
@@ -56,3 +59,30 @@ def test_custom_sub_class_deserialization(fragment):
     assert isinstance(deserialized_fragment, TestDocument)
     assert deserialized_fragment.id == fragment.id
     assert deserialized_fragment.metadata == fragment.metadata
+
+
+def test_create_from(fragment):
+    new_fragment = Fragment.create_from(fragment)
+
+    assert new_fragment != fragment
+    assert new_fragment.id is not None
+    assert new_fragment.id != fragment.id
+    assert new_fragment.label == fragment.label
+    assert new_fragment.metadata == fragment.metadata
+
+    new_fragment = Fragment.create_from(fragment, label="new_label")
+    assert new_fragment != fragment
+    assert new_fragment.id is not None
+    assert new_fragment.id != fragment.id
+    assert new_fragment.label != fragment.label
+    assert new_fragment.label == "new_label"
+    assert new_fragment.metadata == fragment.metadata
+
+    new_document = Document.create_from(fragment)
+
+    assert isinstance(new_document, Document)
+    assert new_document != fragment
+    assert new_document.id is not None
+    assert new_document.id != fragment.id
+    assert new_document.label == fragment.label
+    assert new_document.metadata == fragment.metadata

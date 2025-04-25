@@ -39,8 +39,29 @@ class Fragment(BaseModel):
     )
     label: str = Field(..., description="Label for the fragment.")
     metadata: Dict[str, Any] = Field(
-        ..., description="Metadata associated with the fragment."
+        ..., 
+        default_factory=dict,
+        description="Metadata associated with the fragment."
     )
+    content_ref: str | None = Field(
+        default=None,
+        description="Reference to the content of the fragment.",
+    )
+
+    def human_name(self):
+        if self.label:
+            return f"{self.label}/{self.id}"
+        else:
+            return self.id
+
+    @classmethod
+    def create_from(cls, fragment, **kwargs: dict[str, Any]) -> "Fragment":
+        data = dict(fragment.dict())
+        data.pop("class_name", None)
+        data.pop("id", None)
+        data.update(kwargs)
+        return cls(**data)
+
 
     # TODO: remove?
     @classmethod
@@ -110,13 +131,22 @@ class Fragment(BaseModel):
 
 
 class Document(Fragment):
+    content_url: str = Field(
+        default_factory=lambda: str(uuid4()),
+        description="URL for the content of this document",
+    )
+
     @classmethod
     def class_name(cls) -> str:
         return "Document"
 
 
-class SearchDocument(Fragment):
-    pass
+
+class SearchDocument(Fragment): # TODO rename?
+    @classmethod
+    def class_name(cls) -> str:
+        return "Document"
+
 
 
 class Operation(BaseModel):

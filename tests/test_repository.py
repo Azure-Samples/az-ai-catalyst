@@ -3,7 +3,7 @@ from pathlib import Path
 import pytest
 
 from az_ai.ingestion import Fragment, FragmentSpec, Document
-from az_ai.ingestion.repository import FragmentNotFoundError, LocalRepository, DuplicateFragmentError
+from az_ai.ingestion.repository import FragmentNotFoundError, LocalRepository, DuplicateFragmentError, FragmentContentNotFoundError
 
 
 
@@ -21,6 +21,7 @@ def document():
         id="doc_id",
         label="doc_label",
         metadata={"key": "document_value"},
+        content_url="file:README.md",
     )
 
 @pytest.fixture(scope="function")
@@ -92,3 +93,30 @@ def test_duplicate_insert(empty_repository, fragment):
     empty_repository.store(fragment)
     with pytest.raises(DuplicateFragmentError):
         empty_repository.store(fragment)
+
+def test_document_store(empty_repository, document):
+    empty_repository.store(document)
+    
+    retrieved_document = empty_repository.get(document.id)
+
+    assert retrieved_document == document
+
+def test_fragment_content_not_found(empty_repository, fragment):
+    pytest.skip("Skipping test for FragmentContentNotFoundError until content_ref is implemented")
+    empty_repository.store(fragment)
+
+    with pytest.raises(FragmentContentNotFoundError):
+        empty_repository.get_content(fragment.id)
+
+def test_document_content_from_content_url(empty_repository, document):
+    empty_repository.store(document)
+    
+    content = empty_repository.get_content(document.id)
+
+    assert open('README.md', "rb").read() == content
+    
+
+
+
+
+

@@ -1,14 +1,17 @@
 import logging
+from pathlib import Path
 from typing import Annotated
 
 import az_ai.ingestion
+from az_ai.ingestion.repository import LocalRepository
 from az_ai.ingestion import Document, Fragment, SearchDocument
 
 logging.basicConfig(level=logging.INFO)
 
 
-ingestion = az_ai.ingestion.Ingestion()
-
+ingestion = az_ai.ingestion.Ingestion(
+    repository=LocalRepository(path= Path("/tmp/its_a_rag_ingestion")),
+)
 
 @ingestion.operation()
 def apply_document_intelligence(
@@ -18,8 +21,7 @@ def apply_document_intelligence(
     Get the PDF and apply DocumentIntelligence
     Generate a fragment containing DocumentIntelligenceResult and Markdown
     """
-    pass
-
+    return Fragment.create_from(document, label="di_result")
 
 @ingestion.operation()
 def extract_figures(
@@ -31,7 +33,12 @@ def extract_figures(
     2. Create a new image fragment for each figure.
     3. Insert a figure reference in the di_result fragment Markdown.
     """
-    pass
+    return [
+        Fragment.create_from(
+            fragment, 
+            label="figure", 
+            metadata={"figure": "figure_1"})
+    ]
 
 
 @ingestion.operation()
@@ -61,7 +68,8 @@ with open("examples/its_a_rag.md", "w") as f:
     f.write("\n```")
 
 # execute the ingestion pipeline
-# ingestion(file="example.pdf")
+
+ingestion(file="example.pdf")
 
 
 # Other ideas:
@@ -73,4 +81,8 @@ from figures:Fragment to text:Fragment call embedded
 
 # OR
 
-# @ingestion.transformation("from Document to di_result:Fragment")
+#@ingestion.transformation(
+#        "from Document to di_result:Fragment" \
+#        "use building_block document_intelligence"
+#        )
+#def apply_document_intelligence(content, )

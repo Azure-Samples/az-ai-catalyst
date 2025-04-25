@@ -1,4 +1,4 @@
-from .ingestion import Ingestion
+from .ingestion import Ingestion, OperationError
 from .schema import Document, Fragment, FragmentSpec, Operation, SearchDocument
 
 __all__ = [
@@ -8,4 +8,5 @@ __all__ = [
     "Ingestion",
     "SearchDocument",
     "FragmentSpec",
+    "OperationError",
 ]
