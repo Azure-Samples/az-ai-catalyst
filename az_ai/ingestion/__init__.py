@@ -1,12 +1,13 @@
 from .ingestion import Ingestion, OperationError
-from .schema import Document, Fragment, FragmentSpec, Operation, SearchDocument
+from .schema import Document, Fragment, FragmentSpec, Operation, Embedding, ImageFragment
 
 __all__ = [
     "Fragment",
     "Document",
     "Operation",
     "Ingestion",
-    "SearchDocument",
+    "Embedding",
     "FragmentSpec",
     "OperationError",
+    "ImageFragment",
 ]

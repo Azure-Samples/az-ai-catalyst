@@ -2,22 +2,32 @@ import pytest
 
 from az_ai.ingestion import Fragment, Document
 
+METADATA = {
+    "file_name": "test.pdf",
+    "file_path": "/home/user/az-ai-ingestion/tests/data/test.pdf",
+    "file_size": 92971,
+    "mime_type": "application/pdf",
+}
+
+
 @pytest.fixture
 def document():
     return Document(
         id="doc_1",
         label="source",
-        metadata={"key": "value"},
+        metadata=dict(METADATA),
     )
 
 
 def test_document_human_name(document):
-    assert document.human_name() == "source/doc_1"
+    assert document.human_name() == "test.pdf"
+
 
 def test_document_initialization(document):
     assert document.id == "doc_1"
     assert document.label == "source"
-    assert document.metadata == {"key": "value"}
+    assert document.metadata == METADATA
+
 
 def test_document_deserialization(document):
     document_json = """{ 

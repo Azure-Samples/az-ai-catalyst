@@ -12,6 +12,7 @@ dependencies = [
     "pedantic>=2.1.9",
     "pydantic>=2.11.3",
     "pytest>=8.3.5",
+"python-dotenv>=1.1.0",
     "rich>=14.0.0",
 ]
 

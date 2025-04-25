@@ -12,7 +12,7 @@ def fragment():
 
 
 def test_fragment_human_name(fragment):
-    assert fragment.human_name() == "md/fragment_1"
+    assert fragment.human_name() == "md_fragment_1"
 
 def test_fragment_initialization(fragment):
     assert fragment.id == "fragment_1"

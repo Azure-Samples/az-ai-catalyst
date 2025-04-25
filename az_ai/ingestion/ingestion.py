@@ -1,27 +1,27 @@
-import logging
 import inspect
-
+import logging
+import mimetypes
+from pathlib import Path
 from typing import (
-    Callable,
-    TypeVar,
-    Any,
-    get_args,
-    get_type_hints,
-    get_origin,
-    List,
     Annotated,
+    Any,
+    Callable,
+    get_args,
+    get_origin,
+    get_type_hints,
 )
 
 from rich.console import Console
 
+from az_ai.ingestion.repository import Repository
 from az_ai.ingestion.schema import (
+    CommandFunctionType,
+    Document,
     Fragment,
     OperationInfo,
-    CommandFunctionType,
     OperationInput,
     OperationOutput,
 )
-from az_ai.ingestion.repository import Repository
 
 logger = logging.getLogger(__name__)
 
@@ -33,7 +33,7 @@ class OperationError(Exception):
 class Ingestion:
     def __init__(self, repository: Repository = None):
         self._operations: dict[str, OperationInfo] = {}
-        self._repository = repository
+        self.repository = repository
 
     def operation(self) -> Callable[[CommandFunctionType], CommandFunctionType]:
         def decorator(func: CommandFunctionType) -> CommandFunctionType:
@@ -55,26 +55,42 @@ class Ingestion:
             f"Run ingestion pipeline with args: {kwargs}",
         )
         with console.status("Running ingestion pipeline...") as status:
-            for operation in self.operations().values():
-                status.update(f"Running operation: {operation.name} ({len(self._repository.find())})...", spinner="dots")
-                specs = operation.input.specs()
-                output_spec = operation.output.spec()
-                for spec in specs:
-                    fragments = self._repository.find(spec)
-                    for fragment in fragments:
-                        status.update(f"Running operation {operation.name} on fragment {fragment.id}...", spinner="dots")
-                        result = operation.func(fragment)
-                        if not operation.output.multiple:
-                            result = [result]
-                        for res in result:
-                            if not output_spec.matches(res):
-                                console.log(f"Result {res.id} does not match output spec {output_spec}")
+            try:
+                for operation in self.operations().values():
+                    status.update(
+                        f"Running operation: {operation.name} ({len(self.repository.find())})...",
+                        spinner="dots",
+                    )
+                    specs = operation.input.specs()
+                    output_spec = operation.output.spec()
+                    for spec in specs:
+                        fragments = self.repository.find(spec)
+                        for fragment in fragments:
+                            console.log(
+                                f"Running operation {operation.name} on fragment {fragment.id}..."
+                            )
+                            result = operation.func(fragment)
+                            if not operation.output.multiple:
+                                result = [result]
+                            if result is None:
                                 raise OperationError(
-                                    f"Non compliant Fragment returned for operation {operation.name}: {fragment}"
+                                    f"Operation {operation.name} returned None for fragment {fragment.id}"
                                 )
-                            console.log(f"Storing result {res.id}...")
-                            self._repository.store(res)
-
+                            for res in result:
+                                if not output_spec.matches(res):
+                                    console.log(
+                                        f"Result {res.id} does not match output spec {output_spec}"
+                                    )
+                                    raise OperationError(
+                                        f"Non compliant Fragment returned for operation {operation.name}: {fragment}"
+                                    )
+                                console.log(
+                                    f" -> Storing result {res.id}:{type(res).__name__}\\[{res.label}] ..."
+                                )
+                                self.repository.store(res)
+            except Exception as e:
+                console.log(f"Error running ingestion pipeline: {e}")
+                raise e
 
     def mermaid(self) -> str:
         """
@@ -89,7 +105,9 @@ class Ingestion:
             if spec.label:
                 fragment_label += f"[{spec.label}]"
             shape = "doc"
-            diagram += f"""    {spec}@{{ shape: {shape}, label: "{fragment_label}" }}\n"""
+            diagram += (
+                f"""    {spec}@{{ shape: {shape}, label: "{fragment_label}" }}\n"""
+            )
 
         for operation in self.operations().values():
             diagram += f"""    {operation.name}@{{ shape: rect, label: "{operation.name}" }}\n"""
@@ -98,8 +116,35 @@ class Ingestion:
                 diagram += f"""    {spec} --> {operation.name}\n"""
 
         return diagram
-    
-    
+
+    def add_document_from_file(self, file: str | Path, mime_type: str = None) -> Document:
+        """
+        Create a Document object from a file.
+        """
+        logger.debug("Creating document from file %s...", file)
+        if isinstance(file, str):
+            file = Path(file)
+        file = file.resolve()
+        if not file.exists():
+            raise OperationError(f"File {file} does not exist.")
+
+        if mime_type is None:
+            mime_type, _ = mimetypes.guess_type(str(file))
+            if mime_type is None:
+                mime_type = "application/octet-stream"
+        document = Document(
+            label="start",
+            content_url=file.as_uri(),
+            metadata={
+                "file_name": file.name,
+                "file_path": str(file),
+                "file_size": file.stat().st_size,
+                "mime_type": mime_type,
+            },
+        )
+
+        self.repository.store(document)
+        return document
 
     def _parse_signature(self, func: CommandFunctionType) -> OperationInfo:
         """
@@ -206,5 +251,3 @@ class Ingestion:
             # For Annotated types, the first argument is the actual type
             return get_args(type_hint)[0]
         return type_hint
-
-

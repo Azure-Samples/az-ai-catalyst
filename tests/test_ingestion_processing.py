@@ -104,7 +104,7 @@ def test_double_ingestion(two_step_ingestion, empty_repository, document):
     assert len(empty_repository.find()) == 3
 
 
-def test_return_is_compliant_with_signtaure(empty_repository, document):
+def test_return_is_compliant_with_signature(empty_repository, document):
     ingestion = Ingestion(repository=empty_repository)
     empty_repository.store(document)
     

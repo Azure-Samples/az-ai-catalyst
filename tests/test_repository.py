@@ -42,6 +42,15 @@ def test_store(empty_repository, fragment):
 
     assert retrieved_fragment == fragment
 
+def test_update(repository, fragment):
+
+    fragment.label = "updated_label"
+    repository.update(fragment)
+
+    retrieved_fragment = repository.get(fragment.id)
+    assert retrieved_fragment.label == "updated_label"
+
+
 def test_find_fragment(repository, fragment):
     spec = FragmentSpec(
         fragment_type=Fragment,

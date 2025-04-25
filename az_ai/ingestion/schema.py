@@ -14,7 +14,6 @@ from typing import (
 )
 from uuid import uuid4
 
-import pydantic_core
 from pydantic import (
     BaseModel,
     Field,
@@ -23,7 +22,6 @@ from pydantic import (
     SerializerFunctionWrapHandler,
     model_serializer,
 )
-from pydantic.fields import FieldInfo
 from pydantic.json_schema import JsonSchemaValue
 from pydantic_core import CoreSchema
 
@@ -39,9 +37,7 @@ class Fragment(BaseModel):
     )
     label: str = Field(..., description="Label for the fragment.")
     metadata: Dict[str, Any] = Field(
-        ..., 
-        default_factory=dict,
-        description="Metadata associated with the fragment."
+        ..., default_factory=dict, description="Metadata associated with the fragment."
     )
     content_ref: str | None = Field(
         default=None,
@@ -50,7 +46,7 @@ class Fragment(BaseModel):
 
     def human_name(self):
         if self.label:
-            return f"{self.label}/{self.id}"
+            return f"{self.label}_{self.id}"
         else:
             return self.id
 
@@ -61,7 +57,6 @@ class Fragment(BaseModel):
         data.pop("id", None)
         data.update(kwargs)
         return cls(**data)
-
 
     # TODO: remove?
     @classmethod
@@ -116,7 +111,7 @@ class Fragment(BaseModel):
         for sub in cls.all_subclasses():
             if data_type == sub.__name__:
                 return sub(**data)
-        raise TypeError(f"Unsupport sub-type: {data_type}")
+        raise TypeError(f"Unsupported sub-type: {data_type}")
 
     @classmethod
     def from_json(cls, data_str: str, **kwargs: Any) -> "Fragment":  # type: ignore
@@ -136,17 +131,36 @@ class Document(Fragment):
         description="URL for the content of this document",
     )
 
+    def human_name(self):
+        if "file_name" in self.metadata:
+            return self.metadata["file_name"]
+        else:
+            return super().human_name()
+
     @classmethod
     def class_name(cls) -> str:
         return "Document"
 
+class ImageFragment(Fragment):
+    def human_name(self):
+        if "file_name" in self.metadata:
+            return self.metadata["file_name"]
+        else:
+            return super().human_name()
 
-
-class SearchDocument(Fragment): # TODO rename?
     @classmethod
     def class_name(cls) -> str:
-        return "Document"
+        return "ImageFragment"
 
+
+class Embedding(Fragment):
+    vector: List[float] = Field(
+        default=None, description="Embedding of the fragment."
+    )
+
+    @classmethod
+    def class_name(cls) -> str:
+        return "Embedding"
 
 
 class Operation(BaseModel):

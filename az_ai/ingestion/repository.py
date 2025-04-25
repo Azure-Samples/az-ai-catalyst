@@ -42,8 +42,11 @@ class LocalRepository(Repository):
         self._path = path
         self._contents_path = path / "_content"
         self._fragments_path = path / "_fragments"
+        self._human_path = path / "_human"
         self._contents_path.mkdir(parents=True, exist_ok=True)
         self._fragments_path.mkdir(parents=True, exist_ok=True)
+        self._human_path.mkdir(parents=True, exist_ok=True)
+
 
     def get(self, reference: str) -> Fragment:
         """Get the value for the given key."""
@@ -60,11 +63,19 @@ class LocalRepository(Repository):
         fragment_path = self._fragment_path(fragment)
         if fragment_path.exists():
             raise DuplicateFragmentError(f"Fragment {fragment.id} already exists.")
-        with open(fragment_path, "w") as f:
-            f.write(fragment.json())
+        fragment_path.write_text(fragment.model_dump_json(indent=2))
 
         return fragment
 
+    def update(self, fragment: Fragment) -> Fragment:
+        """Store the given fragment."""
+
+        fragment_path = self._fragment_path(fragment)
+        if not fragment_path.exists():
+            raise FragmentNotFoundError(f"Fragment {fragment.id} does not exist.")
+        fragment_path.write_text(fragment.model_dump_json(indent=2))
+
+        return fragment
     def find(self, spec: FragmentSpec = None) -> list[Fragment]:
         """
         Get all fragments matching the given spec.
@@ -93,6 +104,7 @@ class LocalRepository(Repository):
 
         content = self._get_content_from_url(fragment)
         self._store_content(fragment, content)
+        self.update(fragment)
 
         return content
     
@@ -102,12 +114,21 @@ class LocalRepository(Repository):
         """
 
         if fragment.content_ref is None:
-            fragment.content_ref = fragment.human_name()
+            fragment.content_ref = fragment.id
         content_path = self._content_path(fragment)
-        if not content_path.parent.exists():
-            content_path.parent.mkdir(parents=True, exist_ok=True)
-        with open(content_path, "wb") as f:
-            f.write(content)
+        content_path.write_bytes(content)
+        self._create_human_content_link(fragment, content_path)
+
+    def _create_human_content_link(self, fragment: Fragment, content_path: Path):
+        """
+        Create a human-readable link for the given fragment.
+        """
+        human_path = self._human_path / fragment.human_name()
+        if human_path.exists():
+            raise DuplicateFragmentError(f"Fragment {fragment.id} human content name already exists.")
+        if not human_path.parent.exists():
+            human_path.parent.mkdir(parents=True, exist_ok=True)
+        human_path.symlink_to(content_path)
 
     def _get_content_from_url(self, fragment: Fragment) -> bytes:
         """
