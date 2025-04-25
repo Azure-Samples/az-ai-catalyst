@@ -86,3 +86,19 @@ def test_create_from(fragment):
     assert new_document.id != fragment.id
     assert new_document.label == fragment.label
     assert new_document.metadata == fragment.metadata
+
+
+def test_create_from_with_extra_metadata(fragment):
+    new_fragment = Fragment.create_from(
+        fragment,
+        update_metadata={"extra_key": "extra_value"}
+    )
+
+    assert new_fragment != fragment
+    assert new_fragment.id is not None
+    assert new_fragment.id != fragment.id
+    assert new_fragment.label == fragment.label
+    assert new_fragment.metadata == {
+        **fragment.metadata,
+        "extra_key": "extra_value"
+    }

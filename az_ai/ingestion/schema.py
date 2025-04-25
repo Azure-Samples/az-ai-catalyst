@@ -55,7 +55,13 @@ class Fragment(BaseModel):
         data = dict(fragment.dict())
         data.pop("class_name", None)
         data.pop("id", None)
+        extra_metadata = kwargs.pop("update_metadata", None)
         data.update(kwargs)
+        if extra_metadata:
+            if "metadata" in data:
+                data["metadata"].update(extra_metadata)
+            else:
+                data["metadata"] = extra_metadata
         return cls(**data)
 
     # TODO: remove?

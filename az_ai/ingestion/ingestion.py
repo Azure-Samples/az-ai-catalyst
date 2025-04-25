@@ -85,7 +85,7 @@ class Ingestion:
                                         f"Non compliant Fragment returned for operation {operation.name}: {fragment}"
                                     )
                                 console.log(
-                                    f" -> Storing result {res.id}:{type(res).__name__}\\[{res.label}] ..."
+                                    f" -> Storing result {res.id}:{type(res).__name__}\\[{res.label}]: {res.human_name()}..."
                                 )
                                 self.repository.store(res)
             except Exception as e:
@@ -119,7 +119,7 @@ class Ingestion:
 
     def add_document_from_file(self, file: str | Path, mime_type: str = None) -> Document:
         """
-        Create a Document object from a file.
+        Create a Document fragment from a file.
         """
         logger.debug("Creating document from file %s...", file)
         if isinstance(file, str):

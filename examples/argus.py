@@ -21,6 +21,26 @@ def apply_document_intelligence(
 
 
 @ingestion.operation()
+def extract_vendor_name(
+    document: Document,
+) -> Annotated[Fragment, "vendor"]:
+    """
+    Get the PDF and apply DocumentIntelligence
+    Generate a fragment containing DocumentIntelligenceResult and Markdown
+    """
+
+    vendor = document.metadata["filename"].split("_")[0]
+    return Fragment.create_from(
+        document,
+        label="vendor",
+        metadata={
+            "vendor": vendor,
+            "file_name": document.metadata["filename"],
+        },
+    )
+
+
+@ingestion.operation()
 def apply_llm_to_pages(
     fragment: Annotated[Fragment, {"label": "di_result"}],
 ) -> Annotated[Fragment, "llm_result"]:
@@ -52,4 +72,4 @@ with open("examples/argus.md", "w") as f:
     f.write("\n```")
 
 
-#ingestion(file="example.pdf")
+# ingestion(file="example.pdf")
