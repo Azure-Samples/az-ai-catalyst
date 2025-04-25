@@ -6,14 +6,15 @@ from typing import Annotated
 
 import dotenv
 from azure.ai.documentintelligence import DocumentIntelligenceClient
-from azure.ai.projects import AIProjectClient
-from azure.identity import DefaultAzureCredential
-from azure.search.documents.indexes import SearchIndexClient
 from azure.ai.documentintelligence.models import (
     AnalyzeDocumentRequest,
     DocumentAnalysisFeature,
     DocumentContentFormat,
+    AnalyzeResult,
 )
+from azure.ai.projects import AIProjectClient
+from azure.identity import DefaultAzureCredential
+from azure.search.documents.indexes import SearchIndexClient
 
 import az_ai.ingestion
 from az_ai.ingestion import Document, Embedding, Fragment, ImageFragment
@@ -75,9 +76,13 @@ def apply_document_intelligence(
         output_content_format=DocumentContentFormat.Markdown,
     )
 
-    return Fragment.create_from(document, label="document_intelligence_result", update_metadata={
-        "document_intelligence_result": poller.result().as_dict(),
-    })
+    return Fragment.create_from(
+        document,
+        label="document_intelligence_result",
+        update_metadata={
+            "document_intelligence_result": poller.result().as_dict(),
+        },
+    )
 
 
 @ingestion.operation()
@@ -90,9 +95,15 @@ def extract_figures(
     2. Create a new image fragment for each figure.
     3. Insert a figure reference in the document_intelligence_result fragment Markdown.
     """
+
     return [
         ImageFragment.create_from(
-            fragment, label="figure", metadata={"figure": "figure_1"}
+            fragment, label="figure", metadata={"figure": f"figure_{figure_index}"}
+        )
+        for figure_index, figure in enumerate(
+            AnalyzeResult(
+                fragment.metadata["document_intelligence_result"]
+            ).figures
         )
     ]
 
@@ -144,7 +155,9 @@ with open("examples/its_a_rag.md", "w") as f:
 
 # execute the ingestion pipeline
 
-ingestion.add_document_from_file("tests/data/test.pdf")
+# ingestion.add_document_from_file("tests/data/test.pdf")
+
+ingestion.add_document_from_file("../itsarag/data/fsi/pdf/2023 FY GOOGL Short.pdf")
 
 ingestion()
 

@@ -3,11 +3,11 @@
 title: It's a RAG Ingestion Pipeline
 ---
 flowchart TD
-    ImageFragment_figure@{ shape: doc, label: "ImageFragment[figure]" }
+    Fragment_md@{ shape: doc, label: "Fragment[md]" }
     Embedding@{ shape: doc, label: "Embedding" }
+    ImageFragment_figure@{ shape: doc, label: "ImageFragment[figure]" }
     Fragment_figure_description@{ shape: doc, label: "Fragment[figure_description]" }
     Fragment_document_intelligence_result@{ shape: doc, label: "Fragment[document_intelligence_result]" }
-    Fragment_md@{ shape: doc, label: "Fragment[md]" }
     apply_document_intelligence@{ shape: rect, label: "apply_document_intelligence" }
     apply_document_intelligence --> Fragment_document_intelligence_result
     Document --> apply_document_intelligence
