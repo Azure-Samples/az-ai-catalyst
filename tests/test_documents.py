@@ -19,8 +19,8 @@ def document():
     )
 
 
-def test_document_human_name(document):
-    assert document.human_name() == "test.pdf"
+def test_document_human_file_name(document):
+    assert document.human_file_name() == "test.pdf"
 
 
 def test_document_initialization(document):

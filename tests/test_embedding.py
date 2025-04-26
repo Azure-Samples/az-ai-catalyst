@@ -20,8 +20,8 @@ def embedding():
     )
 
 
-def test_embedding_human_name(embedding):
-    assert embedding.human_name() == "source_embedding-1"
+def test_embedding_human_file_name(embedding):
+    assert embedding.human_file_name() == "source_embedding-1"
 
 
 def test_embedding_initialization(embedding):

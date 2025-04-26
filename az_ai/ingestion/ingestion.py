@@ -11,31 +11,28 @@ from typing import (
     get_type_hints,
 )
 
-from rich.console import Console
 
 from az_ai.ingestion.repository import Repository
+from az_ai.ingestion.runner import IngestionRunner, OperationError
 from az_ai.ingestion.schema import (
     CommandFunctionType,
     Document,
     Fragment,
     FragmentSpec,
-    OperationSpec,
     OperationInputSpec,
     OperationOutputSpec,
-    OperationsLogEntry,
+    OperationSpec,
 )
 
 logger = logging.getLogger(__name__)
 
 
-class OperationError(Exception):
-    pass
 
 
 class Ingestion:
     def __init__(self, repository: Repository = None):
-        self._operations: dict[str, OperationSpec] = {}
         self.repository = repository
+        self._operations: dict[str, OperationSpec] = {}
 
     def operation(self) -> Callable[[CommandFunctionType], CommandFunctionType]:
         def decorator(func: CommandFunctionType) -> CommandFunctionType:
@@ -52,67 +49,9 @@ class Ingestion:
         return self._operations
 
     def __call__(self, *args, **kwargs):
-        console = Console()
-        console.log(
-            f"Run ingestion pipeline with args: {kwargs}",
-        )
-        with console.status("Running ingestion pipeline...") as status:
-            try:
-                for operation in self.operations().values():
-                    status.update(
-                        f"Running operation: {operation.name} ({len(self.repository.find())})...",
-                        spinner="dots",
-                    )
-                    self._run_operation(operation, console)
-            except Exception as e:
-                console.log(f"Error running ingestion pipeline: {e}")
-                raise e
+        runner = IngestionRunner(self, self.repository)
 
-    def _run_operation(self, operation: OperationSpec, console):
-        specs = operation.input.specs()
-        for spec in specs:
-            fragments = self.repository.find(spec)
-            for fragment in fragments:
-                if len(self.repository.find_operations_log_entry(
-                    operation_name=operation.name,
-                    input_fragment_ref=fragment.id
-                )) > 0:
-                    console.log(f"Skipping operation {operation.name} on fragment {fragment.id}...")
-                else:
-                    self._run_operation_on_fragment(operation, fragment, console)
-
-    def _run_operation_on_fragment(self, operation: OperationSpec, fragment: Fragment, console):
-        console.log(
-            f"Running operation {operation.name} on fragment {fragment.id}..."
-        )
-        result = operation.func(fragment)
-    
-        if not operation.output.multiple:
-            result = [result]
-        if result is None:
-            raise OperationError(
-                f"Operation {operation.name} returned None for fragment {fragment.id}"
-            )
-        for res in result:
-            output_spec = operation.output.spec()
-            if not output_spec.matches(res):
-                console.log(
-                    f"Result {res.id} does not match output spec {output_spec}"
-                )
-                raise OperationError(
-                    f"Non compliant Fragment returned for operation {operation.name}: {fragment}"
-                )
-            console.log(
-                f" -> Storing result {res.id}:{type(res).__name__}\\[{res.label}]: {res.human_name()}..."
-            )
-            self.repository.store(res)
-        self.repository.add_operations_log_entry(
-            OperationsLogEntry.create_from(
-                operation=operation,
-                input_fragments=[fragment],
-                output_fragments=result,
-            )
-        )
+        runner.run(*args, **kwargs)
 
     def mermaid(self) -> str:
         """
@@ -152,11 +91,7 @@ class Ingestion:
         if not file.exists():
             raise OperationError(f"File {file} does not exist.")
 
-        if self.repository.find(FragmentSpec(
-                fragment_type="Document",
-                label="start"
-            )
-        ):
+        if self.repository.find(FragmentSpec(fragment_type="Document", label="start")):
             return
 
         if mime_type is None:
@@ -251,6 +186,10 @@ class Ingestion:
                 raise OperationError(
                     f"Operation function return Fragment label must be a str not {label}"
                 )
+        else:
+            raise OperationError(
+                f"""Operation {func.__name__} must have a return type of Annotated[Fragment, "label"] not {return_annotation}"""
+            )
 
         base_type = self._get_base_type(return_annotation)
         multiple = False

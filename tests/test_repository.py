@@ -116,14 +116,12 @@ def test_document_store(empty_repository, document):
 
 
 def test_fragment_content_not_found(empty_repository, fragment):
-    pytest.skip(
-        "Skipping test for FragmentContentNotFoundError until content_ref is implemented"
-    )
     empty_repository.store(fragment)
 
-    with pytest.raises(FragmentContentNotFoundError):
+    with pytest.raises(FragmentContentNotFoundError) as e:
         empty_repository.get_content(fragment.id)
 
+    assert "does not have a content_url field to remote fetch content" in str(e.value)
 
 def test_document_content_from_content_url(empty_repository, document):
     empty_repository.store(document)

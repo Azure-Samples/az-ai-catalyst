@@ -19,8 +19,8 @@ def image():
     )
 
 
-def test_image_human_name(image):
-    assert image.human_name() == "test.png"
+def test_image_human_file_name(image):
+    assert image.human_file_name() == "test.png"
 
 
 def test_image_initialization(image):

@@ -15,7 +15,7 @@ def single_step_ingestion(empty_repository):
     ingestion = Ingestion(repository=empty_repository)
 
     @ingestion.operation()
-    def simple(input: Document) -> Fragment:
+    def simple(input: Document) -> Annotated[Fragment, "document_label"]:
         return Fragment(
             id="output_id",
             label=input.label,
@@ -28,7 +28,7 @@ def two_step_ingestion(empty_repository):
     ingestion = Ingestion(repository=empty_repository)
 
     @ingestion.operation()
-    def simple(input: Document) -> Fragment:
+    def simple(input: Document) -> Annotated[Fragment, "output_label"]:
         return Fragment(
             id="output_id",
             label="output_label",
@@ -36,7 +36,7 @@ def two_step_ingestion(empty_repository):
         )
     
     @ingestion.operation()
-    def second(input: Annotated[Fragment, {'label': "output_label"}]) -> Fragment:
+    def second(input: Annotated[Fragment, {'label': "output_label"}]) -> Annotated[Fragment, "second_output_label"]:
         return Fragment(
             id="second_id",
             label="second_output_label",

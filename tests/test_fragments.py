@@ -11,8 +11,27 @@ def fragment():
     )
 
 
-def test_fragment_human_name(fragment):
-    assert fragment.human_name() == "md_fragment_1"
+def test_fragment_human_file_name(fragment):
+    assert fragment.human_file_name() == "md_fragment_1"
+
+#parameterize test
+@pytest.mark.parametrize(
+    "label,elements,expected",
+    [
+        ("di", ["test"], "di_fragment_1"),
+        ("figure", [], "figure_fragment_1"),
+    ],
+)
+def test_fragment_human_file_name_with_components(label, elements, expected):
+    fragment = Fragment(
+        id="fragment_1",
+        label=label,
+        human_elements=elements,
+        metadata={},
+    )
+    assert fragment.human_file_name() == expected
+
+
 
 def test_fragment_initialization(fragment):
     assert fragment.id == "fragment_1"

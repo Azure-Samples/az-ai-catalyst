@@ -163,14 +163,13 @@ class LocalRepository(Repository):
         """Get the content of the fragment."""
         fragment = self.get(reference)
 
-        if not fragment.content_url:
-            raise FragmentContentNotFoundError(
-                f"Fragment {reference} does not have a content URL."
-            )
-
         if fragment.content_ref:
             return self._get_content_from_ref(fragment)
 
+        if "content_url" not in fragment.model_fields:
+            raise FragmentContentNotFoundError(
+                f"Fragment {fragment.id} does not have a content_url field to remote fetch content."
+            )
         content = self._get_content_from_url(fragment)
         self._store_content(fragment, content)
         self.update(fragment)
@@ -192,7 +191,7 @@ class LocalRepository(Repository):
         """
         Create a human-readable link for the given fragment.
         """
-        human_path = self._human_path / fragment.human_name()
+        human_path = self._human_path / fragment.human_file_name()
         if human_path.exists():
             raise DuplicateFragmentError(
                 f"Fragment {fragment.id} human content name already exists."
@@ -206,6 +205,10 @@ class LocalRepository(Repository):
         Get the content from the given URL.
         """
         content_url = fragment.content_url
+        if not content_url:
+            raise FragmentContentNotFoundError(
+                f"Fragment {fragment.id} does not have a content URL."
+            )
         try:
             with request.urlopen(content_url) as response:
                 return response.read()

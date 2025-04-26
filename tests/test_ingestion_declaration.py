@@ -6,6 +6,7 @@ import az_ai.ingestion
 from az_ai.ingestion import Document, Fragment
 from az_ai.ingestion.ingestion import OperationError
 
+
 @pytest.fixture
 def ingestion():
     return az_ai.ingestion.Ingestion()
@@ -13,7 +14,8 @@ def ingestion():
 
 def test_ingestion_initialization(ingestion):
     ingestion.operation()
-    def operation(document: Document) -> Fragment:
+
+    def operation(document: Document) -> Annotated[Fragment, "text"]:
         pass
 
 
@@ -23,34 +25,44 @@ def test_operation_should_have_return_type(ingestion):
         def operation(document: Document):
             pass
 
+
+def test_operation_should_have_annotated_return_type(ingestion):
+    with pytest.raises(OperationError):
+        @ingestion.operation()
+        def operation(document: Document) -> Fragment:
+            pass
+
+
 def test_operation_should_have_parammeters(ingestion):
     with pytest.raises(OperationError):
         @ingestion.operation()
-        def operation() -> Document:
+        def operation() -> Annotated[Document, "text"]:
             pass
 
 
 def test_operation_accepts_only_fragment_parameters(ingestion):
     with pytest.raises(OperationError):
         @ingestion.operation()
-        def operation(fragment: str) -> Fragment:
+        def operation(fragment: str) -> Annotated[Fragment, "text"]:
             pass
+
 
 def test_operation_accepts_only_fragment_return_types(ingestion):
     with pytest.raises(OperationError):
         @ingestion.operation()
-        def operation(fragment: Fragment) -> str:
+        def operation(fragment: Fragment) -> Annotated[str, "text"]:
             pass
 
 
 def test_operation_accepts_only_dict_filter(ingestion):
     with pytest.raises(OperationError):
         @ingestion.operation()
-        def operation(fragment: Annotated[Fragment, 'text': 'wrong']) -> Fragment:
+        def operation(fragment: Annotated[Fragment, "text":"wrong"]) -> Annotated[Fragment, "text"]:
             pass
+
 
 def test_operation_accepts_only_dict_metadata(ingestion):
     with pytest.raises(OperationError):
         @ingestion.operation()
-        def operation(fragment: Fragment) -> Annotated[Fragment, 'text': 'wrong']:
+        def operation(fragment: Fragment) -> Annotated[Fragment, "text":"wrong"]:
             pass

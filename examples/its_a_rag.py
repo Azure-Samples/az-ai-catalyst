@@ -139,12 +139,12 @@ def split_markdown(
 @ingestion.operation()
 def embed(
     fragment: Annotated[Fragment, {"label": ["md", "figure_description"]}],
-) -> Embedding:
+) -> Annotated[Embedding, "chunk"]:
     """
     For each figures or MD fragment create an embedding fragment
     """
 
-    return Embedding.create_from(fragment, vector=[0.1, 0.2, 0.3])
+    return Embedding.create_from(fragment, label="chunk", vector=[0.1, 0.2, 0.3])
 
 
 # Write the ingestion pipeline diagram to a markdown file
@@ -158,6 +158,7 @@ with open("examples/its_a_rag.md", "w") as f:
 # ingestion.add_document_from_file("tests/data/test.pdf")
 
 ingestion.add_document_from_file("../itsarag/data/fsi/pdf/2023 FY GOOGL Short.pdf")
+ingestion.add_document_from_file("../itsarag/data/fsi/pdf/2023 FY GOOGL.pdf")
 
 ingestion()
 
