@@ -111,22 +111,19 @@ def test_document_store(empty_repository, document):
     empty_repository.store(document)
 
     retrieved_document = empty_repository.get(document.id)
+    # At that point content has been loaded by the repository
+    assert retrieved_document.content_ref == document.id
+    assert retrieved_document.content == Path("README.md").read_bytes()
 
+    retrieved_document.content_ref = None
+    retrieved_document.content = None
     assert retrieved_document == document
 
-
-def test_fragment_content_not_found(empty_repository, fragment):
-    empty_repository.store(fragment)
-
-    with pytest.raises(FragmentContentNotFoundError) as e:
-        empty_repository.get_content(fragment.id)
-
-    assert "does not have a content_url field to remote fetch content" in str(e.value)
 
 def test_document_content_from_content_url(empty_repository, document):
     empty_repository.store(document)
 
-    content = empty_repository.get_content(document.id)
+    content = empty_repository.get(document.id).content
 
     assert open("README.md", "rb").read() == content
 

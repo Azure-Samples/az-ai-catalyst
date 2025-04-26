@@ -35,6 +35,10 @@ class Fragment(BaseModel):
         default_factory=list,
         description="List of human-readable parent names for the fragment.",
     )
+    human_index: int | None = Field( 
+        default=None,
+        description="Index of the fragment when multiple fragments with the same label and parent_names are generated.",
+    )
     metadata: Dict[str, Any] = Field(
         ..., default_factory=dict, description="Metadata associated with the fragment."
     )
@@ -46,10 +50,16 @@ class Fragment(BaseModel):
         default='application/octet-stream',
         description="MIME type of the fragment.",
     )
+    content: bytes | None = Field(
+        default=None,
+        exclude=True,
+        description="Binary content associated to this field (not serialized)",
+    )
 
     def human_file_name(self):
         suffix = mimetypes.guess_extension(self.mime_type)
-        return "/".join(self.parent_names + [f"{self.label}{suffix}"])
+        index_suffix = f"_{self.human_index}" if self.human_index is not None else ""
+        return "/".join(self.parent_names + [f"{self.label}{index_suffix}{suffix}"])
         
     def __str__(self):
         return f"{self.id}:{self.__class__.__name__}[{self.label}, {self.human_file_name()}]"
@@ -57,8 +67,10 @@ class Fragment(BaseModel):
     @classmethod
     def create_from(cls, fragment, **kwargs: dict[str, Any]) -> "Fragment":
         data = dict(fragment.dict())
+        # Do not copy those 3 fields 
         data.pop("class_name", None)
-        data.pop("id", None)
+        data.pop("id",  None)
+        data.pop("content_ref", None)
         extra_metadata = kwargs.pop("update_metadata", None)
         data.update(kwargs)
         if extra_metadata:
@@ -159,18 +171,6 @@ class Document(Fragment):
     @classmethod
     def class_name(cls) -> str:
         return "Document"
-
-class ImageFragment(Fragment):
-    def human_file_name(self):
-        if "file_name" in self.metadata:
-            return self.metadata["file_name"]
-        else:
-            return super().human_file_name()
-
-    @classmethod
-    def class_name(cls) -> str:
-        return "ImageFragment"
-
 
 class Chunk(Fragment):
     vector: List[float] = Field(

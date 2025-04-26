@@ -8,17 +8,18 @@ import dotenv
 from azure.ai.documentintelligence import DocumentIntelligenceClient
 from azure.ai.documentintelligence.models import (
     AnalyzeDocumentRequest,
+    AnalyzeResult,
     DocumentAnalysisFeature,
     DocumentContentFormat,
-    AnalyzeResult,
 )
 from azure.ai.projects import AIProjectClient
 from azure.identity import DefaultAzureCredential
 from azure.search.documents.indexes import SearchIndexClient
 
 import az_ai.ingestion
-from az_ai.ingestion import Document, Chunk, Fragment, ImageFragment
+from az_ai.ingestion import Chunk, Document, Fragment
 from az_ai.ingestion.repository import LocalRepository
+from az_ai.ingestion.tools.markdown import MarkdownFigureExtractor
 
 dotenv.load_dotenv()
 
@@ -68,7 +69,7 @@ def apply_document_intelligence(
     poller = document_intelligence_client.begin_analyze_document(
         model_id="prebuilt-layout",
         body=AnalyzeDocumentRequest(
-            bytes_source=ingestion.repository.get_content(document),
+            bytes_source=ingestion.repository.get(document).content,
         ),
         features=[
             DocumentAnalysisFeature.OCR_HIGH_RESOLUTION,
@@ -76,12 +77,14 @@ def apply_document_intelligence(
         output_content_format=DocumentContentFormat.Markdown,
     )
 
+    analyze_result = poller.result()
     return Fragment.create_from(
         document,
         label="document_intelligence_result",
         mime_type="text/markdown",
+        content=analyze_result.content,
         update_metadata={
-            "document_intelligence_result": poller.result().as_dict(),
+            "document_intelligence_result": analyze_result.as_dict(),
         },
     )
 
@@ -89,30 +92,18 @@ def apply_document_intelligence(
 @ingestion.operation()
 def extract_figures(
     fragment: Annotated[Fragment, {"label": "document_intelligence_result"}],
-) -> Annotated[list[ImageFragment], "figure"]:
+) -> Annotated[list[Fragment], "figure"]:
     """
     1. Process every figure in the "document_intelligence_result" fragment, extract the figure from
     its bounding box.
     2. Create a new image fragment for each figure.
     3. Insert a figure reference in the document_intelligence_result fragment Markdown.
     """
-
-    return [
-        ImageFragment.create_from(
-            fragment,
-            label="figure",
-            mime_type="image/png",
-            metadata={"figure": f"figure_{figure_index}"},
-        )
-        for figure_index, figure in enumerate(
-            AnalyzeResult(fragment.metadata["document_intelligence_result"]).figures
-        )
-    ]
-
+    return MarkdownFigureExtractor().extract(fragment)
 
 @ingestion.operation()
 def describe_figure(
-    image: Annotated[ImageFragment, {"label": "figure"}],
+    image: Annotated[Fragment, {"label": "figure"}],
 ) -> Annotated[Fragment, "figure_description"]:
     """
     1. Process the image fragment and generate a description.
@@ -133,10 +124,7 @@ def split_markdown(
     1. Split the Markdown in the "document_intelligence_result" fragment into multiple fragments.
     2. Create a new Markdown fragment for each split.
     """
-    return [
-        Fragment.create_from(fragment, label="md_fragment")
-        for i in range(4)
-    ]
+    return [Fragment.create_from(fragment, label="md_fragment") for i in range(4)]
 
 
 @ingestion.operation()
@@ -161,7 +149,7 @@ with open("examples/its_a_rag.md", "w") as f:
 # ingestion.add_document_from_file("tests/data/test.pdf")
 
 ingestion.add_document_from_file("../itsarag/data/fsi/pdf/2023 FY GOOGL Short.pdf")
-ingestion.add_document_from_file("../itsarag/data/fsi/pdf/2023 FY GOOGL.pdf")
+#ingestion.add_document_from_file("../itsarag/data/fsi/pdf/2023 FY GOOGL.pdf")
 
 ingestion()
 

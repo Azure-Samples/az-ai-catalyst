@@ -2,6 +2,7 @@ import pytest
 
 from az_ai.ingestion import Fragment, Document
 
+
 @pytest.fixture
 def fragment():
     return Fragment(
@@ -10,30 +11,35 @@ def fragment():
         metadata={"key": "value"},
     )
 
-@pytest.mark.parametrize(
-    "label,mime_type,parents,expected",
-    [
-        ("di", "application/octet-stream", ["test"], "test/di.bin"),
-        ("figure", "image/png", [], "figure.png"),
-        ("figure", "image/png", ["test"], "test/figure.png"),
 
+@pytest.mark.parametrize(
+    "label,mime_type,parents,human_index,expected",
+    [
+        ("di", "application/octet-stream", ["test"], None, "test/di.bin"),
+        ("figure", "image/png", [], None, "figure.png"),
+        ("figure", "image/png", ["test"], None, "test/figure.png"),
+        ("figure", "image/png", ["test"], 1, "test/figure_1.png"),
+        ("figure", "image/png", ["test"], 2, "test/figure_2.png"),
     ],
 )
-def test_fragment_human_file_name_with_elements(label, mime_type, parents, expected):
+def test_fragment_human_file_name_with_elements(
+    label, mime_type, parents, human_index, expected
+):
     fragment = Fragment(
         id="fragment",
         label=label,
         mime_type=mime_type,
         parent_names=parents,
+        human_index=human_index,
         metadata={},
     )
     assert fragment.human_file_name() == expected
 
 
-
 def test_fragment_initialization(fragment):
     assert fragment.id == "fragment_1"
     assert fragment.metadata == {"key": "value"}
+
 
 def test_fragment_deserialization(fragment):
     fragment_json = """{ 
@@ -48,6 +54,7 @@ def test_fragment_deserialization(fragment):
     assert deserialized_fragment.id == fragment.id
     assert deserialized_fragment.metadata == fragment.metadata
 
+
 def test_document_deserialization(fragment):
     fragment_json = """{
         "id": "fragment_1",
@@ -60,6 +67,7 @@ def test_document_deserialization(fragment):
     assert isinstance(deserialized_fragment, Document)
     assert deserialized_fragment.id == fragment.id
     assert deserialized_fragment.metadata == fragment.metadata
+
 
 def test_custom_sub_class_deserialization(fragment):
     class TestDocument(Document):
@@ -107,15 +115,11 @@ def test_create_from(fragment):
 
 def test_create_from_with_extra_metadata(fragment):
     new_fragment = Fragment.create_from(
-        fragment,
-        update_metadata={"extra_key": "extra_value"}
+        fragment, update_metadata={"extra_key": "extra_value"}
     )
 
     assert new_fragment != fragment
     assert new_fragment.id is not None
     assert new_fragment.id != fragment.id
     assert new_fragment.label == fragment.label
-    assert new_fragment.metadata == {
-        **fragment.metadata,
-        "extra_key": "extra_value"
-    }
+    assert new_fragment.metadata == {**fragment.metadata, "extra_key": "extra_value"}

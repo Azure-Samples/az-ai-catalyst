@@ -87,7 +87,13 @@ class LocalRepository(Repository):
             raise FragmentNotFoundError(f"Fragment {reference} not found.")
 
         with open(fragment_path, "r") as f:
-            return Fragment.from_json(f.read())
+            fragment = Fragment.from_json(f.read())
+            if fragment.content_ref:
+                fragment.content = self._get_content_from_ref(fragment)
+            elif "content_url" in fragment.model_fields and fragment.content_url:
+                fragment.content = self._get_content_from_url(fragment)
+                self.update(fragment)
+        return fragment
 
     def store(self, fragment: Fragment) -> Fragment:
         """Store the given fragment."""
@@ -95,6 +101,8 @@ class LocalRepository(Repository):
         fragment_path = self._fragment_path(fragment)
         if fragment_path.exists():
             raise DuplicateFragmentError(f"Fragment {fragment.id} already exists.")
+        if fragment.content:
+            self._store_content(fragment)
         fragment_path.write_text(fragment.model_dump_json(indent=2))
 
         return fragment
@@ -105,6 +113,7 @@ class LocalRepository(Repository):
         fragment_path = self._fragment_path(fragment)
         if not fragment_path.exists():
             raise FragmentNotFoundError(f"Fragment {fragment.id} does not exist.")
+        self._store_content(fragment)        
         fragment_path.write_text(fragment.model_dump_json(indent=2))
 
         return fragment
@@ -121,7 +130,8 @@ class LocalRepository(Repository):
             with open(fragment_path, "r") as f:
                 fragment = Fragment.from_json(f.read())
                 if spec is None or spec.matches(fragment):
-                    fragments.append(fragment)
+                    # use self.get to ensure content is loaded
+                    fragments.append(self.get(fragment.id)) 
 
         return fragments
 
@@ -159,24 +169,7 @@ class LocalRepository(Repository):
     def _write_log(self, log: OperationsLog):
         self._operations_log_path.write_text(log.model_dump_json(indent=2))
 
-    def get_content(self, reference: str) -> bytes:
-        """Get the content of the fragment."""
-        fragment = self.get(reference)
-
-        if fragment.content_ref:
-            return self._get_content_from_ref(fragment)
-
-        if "content_url" not in fragment.model_fields:
-            raise FragmentContentNotFoundError(
-                f"Fragment {fragment.id} does not have a content_url field to remote fetch content."
-            )
-        content = self._get_content_from_url(fragment)
-        self._store_content(fragment, content)
-        self.update(fragment)
-
-        return content
-
-    def _store_content(self, fragment: Fragment, content: bytes) -> None:
+    def _store_content(self, fragment: Fragment) -> None:
         """
         Store the content of the fragment.
         """
@@ -184,7 +177,7 @@ class LocalRepository(Repository):
         if fragment.content_ref is None:
             fragment.content_ref = fragment.id
         content_path = self._content_path(fragment)
-        content_path.write_bytes(content)
+        content_path.write_bytes(fragment.content)
         self._create_human_content_link(fragment, content_path)
 
     def _create_human_content_link(self, fragment: Fragment, content_path: Path):

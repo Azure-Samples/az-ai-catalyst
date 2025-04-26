@@ -107,7 +107,7 @@ class Ingestion:
                 "file_name": file.name,
                 "file_path": str(file),
                 "file_size": file.stat().st_size,
-                "mime_type": mime_type, # this is the original file mime type
+                "file_type": mime_type, # this is the original file mime type
             },
         )
 

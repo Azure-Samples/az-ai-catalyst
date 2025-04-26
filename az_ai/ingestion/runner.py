@@ -79,7 +79,7 @@ class IngestionRunner:
             output_spec = operation.output.spec()
             if not output_spec.matches(res):
                 self._console.log(
-                    f"Result {res.id} does not match output spec {escape(str(output_spec))}"
+                    f"Result {res} does not match output spec {escape(str(output_spec))}"
                 )
                 raise OperationError(
                     f"Non compliant Fragment returned for operation {operation.name}: {escape(str(fragment))}"
