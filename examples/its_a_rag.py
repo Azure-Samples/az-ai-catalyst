@@ -17,7 +17,7 @@ from azure.identity import DefaultAzureCredential
 from azure.search.documents.indexes import SearchIndexClient
 
 import az_ai.ingestion
-from az_ai.ingestion import Document, Embedding, Fragment, ImageFragment
+from az_ai.ingestion import Document, Chunk, Fragment, ImageFragment
 from az_ai.ingestion.repository import LocalRepository
 
 dotenv.load_dotenv()
@@ -142,12 +142,12 @@ def split_markdown(
 @ingestion.operation()
 def embed(
     fragment: Annotated[Fragment, {"label": ["md", "figure_description"]}],
-) -> Annotated[Embedding, "chunk"]:
+) -> Annotated[Chunk, "chunk"]:
     """
-    For each figures or MD fragment create an embedding fragment
+    For each figures or MD fragment create an chunk fragment
     """
 
-    return Embedding.create_from(fragment, label="chunk", vector=[0.1, 0.2, 0.3])
+    return Chunk.create_from(fragment, label="chunk", vector=[0.1, 0.2, 0.3])
 
 
 # Write the ingestion pipeline diagram to a markdown file

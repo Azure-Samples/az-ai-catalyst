@@ -172,14 +172,14 @@ class ImageFragment(Fragment):
         return "ImageFragment"
 
 
-class Embedding(Fragment):
+class Chunk(Fragment):
     vector: List[float] = Field(
-        default=None, description="Embedding of the fragment."
+        default=None, description="Chunk of the fragment."
     )
 
     @classmethod
     def class_name(cls) -> str:
-        return "Embedding"
+        return "Chunk"
 
 
 #
