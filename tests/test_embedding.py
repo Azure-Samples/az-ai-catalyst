@@ -14,25 +14,26 @@ METADATA = {
 @pytest.fixture
 def embedding():
     return Embedding(
-        id="embedding-1",
-        label="source",
+        id="embedding",
+        label="target",
+        mime_type="text/markdown",
         metadata=dict(METADATA),
     )
 
 
 def test_embedding_human_file_name(embedding):
-    assert embedding.human_file_name() == "source_embedding-1"
+    assert embedding.human_file_name() == "target.md"
 
 
 def test_embedding_initialization(embedding):
-    assert embedding.id == "embedding-1"
-    assert embedding.label == "source"
+    assert embedding.id == "embedding"
+    assert embedding.label == "target"
     assert embedding.metadata == METADATA
 
 
 def test_document_deserialization(embedding):
     document_json = """{ 
-        "id": "embedding-1",
+        "id": "embedding",
         "label": "png",
         "type": "Embedding",
         "metadata": {"key": "value"}
@@ -44,7 +45,7 @@ def test_document_deserialization(embedding):
 
 def test_document_deserialization_with_vector(embedding):
     document_json = """{ 
-        "id": "embedding-1",
+        "id": "embedding",
         "label": "pdf",
         "type": "Embedding", 
         "vector": [1, 2, 3, 4, 5]

@@ -7,6 +7,7 @@ from typing import (
     TypeVar,
 )
 from uuid import uuid4
+import mimetypes
 
 from pydantic import (
     BaseModel,
@@ -30,6 +31,10 @@ class Fragment(BaseModel):
         description="Unique identifier for the fragment.",
     )
     label: str = Field(..., description="Label for the fragment.")
+    parent_names: List[str] = Field(
+        default_factory=list,
+        description="List of human-readable parent names for the fragment.",
+    )
     metadata: Dict[str, Any] = Field(
         ..., default_factory=dict, description="Metadata associated with the fragment."
     )
@@ -43,10 +48,8 @@ class Fragment(BaseModel):
     )
 
     def human_file_name(self):
-        if self.label:
-            return f"{self.label}_{self.id}"
-        else:
-            return self.id
+        suffix = mimetypes.guess_extension(self.mime_type)
+        return "/".join(self.parent_names + [f"{self.label}{suffix}"])
         
     def __str__(self):
         return f"{self.id}:{self.__class__.__name__}[{self.label}, {self.human_file_name()}]"

@@ -101,11 +101,13 @@ class Ingestion:
         document = Document(
             label="start",
             content_url=file.as_uri(),
+            mime_type=mime_type, # this is the fragment mime type
+            parent_names=[file.stem],
             metadata={
                 "file_name": file.name,
                 "file_path": str(file),
                 "file_size": file.stat().st_size,
-                "mime_type": mime_type,
+                "mime_type": mime_type, # this is the original file mime type
             },
         )
 

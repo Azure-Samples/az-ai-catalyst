@@ -10,23 +10,21 @@ def fragment():
         metadata={"key": "value"},
     )
 
-
-def test_fragment_human_file_name(fragment):
-    assert fragment.human_file_name() == "md_fragment_1"
-
-#parameterize test
 @pytest.mark.parametrize(
-    "label,elements,expected",
+    "label,mime_type,parents,expected",
     [
-        ("di", ["test"], "di_fragment_1"),
-        ("figure", [], "figure_fragment_1"),
+        ("di", "application/octet-stream", ["test"], "test/di.bin"),
+        ("figure", "image/png", [], "figure.png"),
+        ("figure", "image/png", ["test"], "test/figure.png"),
+
     ],
 )
-def test_fragment_human_file_name_with_components(label, elements, expected):
+def test_fragment_human_file_name_with_elements(label, mime_type, parents, expected):
     fragment = Fragment(
-        id="fragment_1",
+        id="fragment",
         label=label,
-        human_elements=elements,
+        mime_type=mime_type,
+        parent_names=parents,
         metadata={},
     )
     assert fragment.human_file_name() == expected

@@ -79,6 +79,7 @@ def apply_document_intelligence(
     return Fragment.create_from(
         document,
         label="document_intelligence_result",
+        mime_type="text/markdown",
         update_metadata={
             "document_intelligence_result": poller.result().as_dict(),
         },
@@ -98,12 +99,13 @@ def extract_figures(
 
     return [
         ImageFragment.create_from(
-            fragment, label="figure", metadata={"figure": f"figure_{figure_index}"}
+            fragment,
+            label="figure",
+            mime_type="image/png",
+            metadata={"figure": f"figure_{figure_index}"},
         )
         for figure_index, figure in enumerate(
-            AnalyzeResult(
-                fragment.metadata["document_intelligence_result"]
-            ).figures
+            AnalyzeResult(fragment.metadata["document_intelligence_result"]).figures
         )
     ]
 
@@ -118,6 +120,7 @@ def describe_figure(
     """
     return Fragment.create_from(
         image,
+        mime_type="text/markdown",
         label="figure_description",
     )
 
@@ -125,13 +128,13 @@ def describe_figure(
 @ingestion.operation()
 def split_markdown(
     fragment: Annotated[Fragment, {"label": "document_intelligence_result"}],
-) -> Annotated[list[Fragment], "md"]:
+) -> Annotated[list[Fragment], "md_fragment"]:
     """
     1. Split the Markdown in the "document_intelligence_result" fragment into multiple fragments.
     2. Create a new Markdown fragment for each split.
     """
     return [
-        Fragment.create_from(fragment, label="md", metadata={"md": "md_{i}"})
+        Fragment.create_from(fragment, label="md_fragment")
         for i in range(4)
     ]
 

@@ -34,11 +34,10 @@ class IngestionRunner:
             try:
                 for operation in self.ingestion.operations().values():
                     status.update(
-                        f"Running {operation}...",
+                        f"Running {escape(str(operation))}...",
                         spinner="dots",
                     )
                     self._run_operation(operation)
-                    #time.sleep(2)
             except Exception as e:
                 self._console.log(f"Error running ingestion pipeline: {e}")
                 raise e
@@ -63,7 +62,7 @@ class IngestionRunner:
                     )
                 else:
                     self._console.log(
-                        f"  Run {escape(fragment.human_file_name())} ({fragment.id})..."
+                        f"  Apply on {escape(fragment.human_file_name())} ({fragment.id})..."
                     )
                     self._run_operation_on_fragment(operation, fragment)
 
