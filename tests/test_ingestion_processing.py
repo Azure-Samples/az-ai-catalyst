@@ -100,7 +100,6 @@ def test_double_ingestion(two_step_ingestion, empty_repository, document):
     assert fragment.label == "second_output_label"
     assert fragment.metadata == fragment.metadata | { "extra_key2": "extra_value2" }
 
-
     assert len(empty_repository.find()) == 3
 
 

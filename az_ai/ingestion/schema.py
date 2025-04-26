@@ -130,6 +130,15 @@ class Fragment(BaseModel):
             [s for c in cls.__subclasses__() for s in c.all_subclasses()]
         )
 
+    @classmethod
+    def get_subclass(cls, cls_name):
+        if cls_name == 'Fragment':
+            return Fragment
+        for cls in cls.all_subclasses():
+            if cls.class_name() == cls_name:
+                return cls
+        raise ValueError(f"'{cls_name}' is not a subclass of Fragment")
+
 
 class Document(Fragment):
     content_url: str = Field(
@@ -206,7 +215,7 @@ class FragmentSpec(BaseModel, frozen=True):
     A class representing a fragment specification.
     """
 
-    fragment_type: type[Fragment] = Field(
+    fragment_type: str = Field(
         ..., description="Type of the input parameter."
     )
     label: str | None = Field(
@@ -218,33 +227,33 @@ class FragmentSpec(BaseModel, frozen=True):
         """
         Check if the fragment matches the specification.
         """
-        if not isinstance(fragment, self.fragment_type):
+        if not isinstance(fragment, Fragment.get_subclass(self.fragment_type)):
             return False
         if self.label and fragment.label != self.label:
             return False
         return True
 
     def __str__(self):
-        result = f"{self.fragment_type.__name__}"
+        result = f"{self.fragment_type}"
         if self.label:
             result += f"_{self.label}"
         return result
 
 
-class OperationInput(BaseModel):
+class OperationInputSpec(BaseModel):
     """
     A class representing the input to an operation function.
     """
 
     name: str = Field(..., description="Name of the input parameter.")
-    fragment_type: type[Fragment] = Field(
+    fragment_type: str = Field(
         ..., description="Type of the input parameter."
     )
     filter: Dict[str, Any] = Field(..., description="Filter for the input parameter.")
 
     def specs(self) -> list[FragmentSpec]:
         """
-        Convert the OperationInput to a list of FragmentSpec.
+        Convert the OperationInputSpec to a list of FragmentSpec.
         """
         if not self.filter:
             return [FragmentSpec(fragment_type=self.fragment_type)]
@@ -266,12 +275,12 @@ class OperationInput(BaseModel):
             raise ValueError("Filter must be a dictionary.")
 
 
-class OperationOutput(BaseModel):
+class OperationOutputSpec(BaseModel):
     """
     A class representing the output of an operation function.
     """
 
-    fragment_type: type[Fragment] = Field(
+    fragment_type: str = Field(
         ..., description="Type of the input parameter."
     )
     multiple: bool = Field(..., description="Whether the output parameter is multiple.")
@@ -279,23 +288,55 @@ class OperationOutput(BaseModel):
 
     def spec(self) -> FragmentSpec:
         """
-        Convert the OperationOutput to a FragmentSpec.
+        Convert the OperationOutputSpec to a FragmentSpec.
         """
         return FragmentSpec(
             fragment_type=self.fragment_type,
             label=self.label,
         )
 
-
-class OperationInfo(BaseModel):
+class OperationSpec(BaseModel):
     """
-    A class representing a operation function.
+    A class representing an operation function.
     """
 
     name: str = Field(..., description="Name of the operation function.")
-    input: OperationInput
-    output: OperationOutput
+    input: OperationInputSpec
+    output: OperationOutputSpec
     func: CommandFunctionType = Field(..., description="The operation function.")
 
     def __call__(self, *args, **kwargs):
         return self.func(*args, **kwargs)
+
+
+#
+# Operations Log
+#
+
+class OperationsLogEntry(BaseModel):
+    """
+    A class representing an entry in the operations log.
+    """
+
+    operation_name: str = Field(..., description="The performed operation.")
+    input_refs: list[str] = Field(..., description="Reference to the input fragments.")
+    output_refs: list[str] = Field(..., description="Reference to the output fragments.")
+
+    @classmethod
+    def create_from(cls, operation: OperationSpec, input_fragments: list[Fragment], output_fragments: list[Fragment]):
+        return OperationsLogEntry(
+            operation_name=operation.name,
+            input_refs=[fragment.id for fragment in input_fragments],
+            output_refs=[fragment.id for fragment in output_fragments],
+        )
+    
+
+class OperationsLog(BaseModel):
+    """
+    A class representing the operations log.
+    """
+
+    entries: list[OperationsLogEntry] = Field(
+        default_factory=list, description="List of operations in the log."
+    )
+

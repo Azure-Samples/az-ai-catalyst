@@ -18,9 +18,11 @@ from az_ai.ingestion.schema import (
     CommandFunctionType,
     Document,
     Fragment,
-    OperationInfo,
-    OperationInput,
-    OperationOutput,
+    FragmentSpec,
+    OperationSpec,
+    OperationInputSpec,
+    OperationOutputSpec,
+    OperationsLogEntry,
 )
 
 logger = logging.getLogger(__name__)
@@ -32,7 +34,7 @@ class OperationError(Exception):
 
 class Ingestion:
     def __init__(self, repository: Repository = None):
-        self._operations: dict[str, OperationInfo] = {}
+        self._operations: dict[str, OperationSpec] = {}
         self.repository = repository
 
     def operation(self) -> Callable[[CommandFunctionType], CommandFunctionType]:
@@ -43,7 +45,7 @@ class Ingestion:
 
         return decorator
 
-    def operations(self) -> dict[str, OperationInfo]:
+    def operations(self) -> dict[str, OperationSpec]:
         """
         Get the list of registered operations.
         """
@@ -61,36 +63,56 @@ class Ingestion:
                         f"Running operation: {operation.name} ({len(self.repository.find())})...",
                         spinner="dots",
                     )
-                    specs = operation.input.specs()
-                    output_spec = operation.output.spec()
-                    for spec in specs:
-                        fragments = self.repository.find(spec)
-                        for fragment in fragments:
-                            console.log(
-                                f"Running operation {operation.name} on fragment {fragment.id}..."
-                            )
-                            result = operation.func(fragment)
-                            if not operation.output.multiple:
-                                result = [result]
-                            if result is None:
-                                raise OperationError(
-                                    f"Operation {operation.name} returned None for fragment {fragment.id}"
-                                )
-                            for res in result:
-                                if not output_spec.matches(res):
-                                    console.log(
-                                        f"Result {res.id} does not match output spec {output_spec}"
-                                    )
-                                    raise OperationError(
-                                        f"Non compliant Fragment returned for operation {operation.name}: {fragment}"
-                                    )
-                                console.log(
-                                    f" -> Storing result {res.id}:{type(res).__name__}\\[{res.label}]: {res.human_name()}..."
-                                )
-                                self.repository.store(res)
+                    self._run_operation(operation, console)
             except Exception as e:
                 console.log(f"Error running ingestion pipeline: {e}")
                 raise e
+
+    def _run_operation(self, operation: OperationSpec, console):
+        specs = operation.input.specs()
+        for spec in specs:
+            fragments = self.repository.find(spec)
+            for fragment in fragments:
+                if len(self.repository.find_operations_log_entry(
+                    operation_name=operation.name,
+                    input_fragment_ref=fragment.id
+                )) > 0:
+                    console.log(f"Skipping operation {operation.name} on fragment {fragment.id}...")
+                else:
+                    self._run_operation_on_fragment(operation, fragment, console)
+
+    def _run_operation_on_fragment(self, operation: OperationSpec, fragment: Fragment, console):
+        console.log(
+            f"Running operation {operation.name} on fragment {fragment.id}..."
+        )
+        result = operation.func(fragment)
+    
+        if not operation.output.multiple:
+            result = [result]
+        if result is None:
+            raise OperationError(
+                f"Operation {operation.name} returned None for fragment {fragment.id}"
+            )
+        for res in result:
+            output_spec = operation.output.spec()
+            if not output_spec.matches(res):
+                console.log(
+                    f"Result {res.id} does not match output spec {output_spec}"
+                )
+                raise OperationError(
+                    f"Non compliant Fragment returned for operation {operation.name}: {fragment}"
+                )
+            console.log(
+                f" -> Storing result {res.id}:{type(res).__name__}\\[{res.label}]: {res.human_name()}..."
+            )
+            self.repository.store(res)
+        self.repository.add_operations_log_entry(
+            OperationsLogEntry.create_from(
+                operation=operation,
+                input_fragments=[fragment],
+                output_fragments=result,
+            )
+        )
 
     def mermaid(self) -> str:
         """
@@ -101,7 +123,7 @@ class Ingestion:
         for operation in self.operations().values():
             fragment_specs.add(operation.output.spec())
         for spec in fragment_specs:
-            fragment_label = spec.fragment_type.__name__
+            fragment_label = spec.fragment_type
             if spec.label:
                 fragment_label += f"[{spec.label}]"
             shape = "doc"
@@ -117,7 +139,9 @@ class Ingestion:
 
         return diagram
 
-    def add_document_from_file(self, file: str | Path, mime_type: str = None) -> Document:
+    def add_document_from_file(
+        self, file: str | Path, mime_type: str = None
+    ) -> Document:
         """
         Create a Document fragment from a file.
         """
@@ -127,6 +151,13 @@ class Ingestion:
         file = file.resolve()
         if not file.exists():
             raise OperationError(f"File {file} does not exist.")
+
+        if self.repository.find(FragmentSpec(
+                fragment_type="Document",
+                label="start"
+            )
+        ):
+            return
 
         if mime_type is None:
             mime_type, _ = mimetypes.guess_type(str(file))
@@ -146,7 +177,7 @@ class Ingestion:
         self.repository.store(document)
         return document
 
-    def _parse_signature(self, func: CommandFunctionType) -> OperationInfo:
+    def _parse_signature(self, func: CommandFunctionType) -> OperationSpec:
         """
         Parse the signature of the function to extract its parameters and return type
         """
@@ -158,7 +189,7 @@ class Ingestion:
         input = self._parse_parameters(func, type_hints, signature)
         output = self._parse_return_type(func, type_hints, signature)
 
-        return OperationInfo(
+        return OperationSpec(
             name=func.__name__,
             func=func,
             input=input,
@@ -191,9 +222,9 @@ class Ingestion:
                 raise OperationError(
                     f"Operation function parameter {param_name} must be of type Fragment not {param_type}"
                 )
-            input = OperationInput(
+            input = OperationInputSpec(
                 name=param_name,
-                fragment_type=param_type,
+                fragment_type=param_type.__name__,
                 filter=filter,
             )
         return input
@@ -203,7 +234,7 @@ class Ingestion:
         func: CommandFunctionType,
         type_hints: dict[str, Any],
         signature: inspect.Signature,
-    ) -> OperationOutput:
+    ) -> OperationOutputSpec:
         """
         Parse the return type of the function to extract its parameters and return type
         """
@@ -237,8 +268,8 @@ class Ingestion:
                     f"Operation function {func.__name__} must have a return type of Fragment not {base_type}"
                 )
 
-        output = OperationOutput(
-            fragment_type=base_type,
+        output = OperationOutputSpec(
+            fragment_type=base_type.__name__,
             multiple=multiple,
             label=label,
         )

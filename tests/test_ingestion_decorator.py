@@ -54,10 +54,10 @@ def test_document_operation(ingestion):
     assert op.name == "document_op"
 
     assert op.input.name == "document"
-    assert op.input.fragment_type == Document
+    assert op.input.fragment_type == 'Document'
     assert op.input.filter == {}
 
-    assert op.output.fragment_type == Document
+    assert op.output.fragment_type == 'Document'
     assert op.output.multiple is False
     assert op.output.label is None
 
@@ -67,10 +67,10 @@ def test_document_operation_annotated(ingestion):
     assert op.name == "document_op_annotated"
 
     assert op.input.name == "document"
-    assert op.input.fragment_type == Document
+    assert op.input.fragment_type == 'Document'
     assert op.input.filter == {"label": "image"}
 
-    assert op.output.fragment_type == Document
+    assert op.output.fragment_type == 'Document'
     assert op.output.multiple is False
     assert op.output.label == "text"
     
@@ -80,10 +80,10 @@ def test_fragment_operation(ingestion):
     assert op.name == "fragment_op"
 
     assert op.input.name == "fragment"
-    assert op.input.fragment_type == Fragment
+    assert op.input.fragment_type == 'Fragment'
     assert op.input.filter == {}
 
-    assert op.output.fragment_type == Fragment
+    assert op.output.fragment_type == 'Fragment'
     assert op.output.multiple is False
     assert op.output.label is None
 
@@ -94,10 +94,10 @@ def test_fragment_operation_annotated(ingestion):
     assert op.name == "fragment_op_annotated"
 
     assert op.input.name == "fragment"
-    assert op.input.fragment_type == Fragment
+    assert op.input.fragment_type == 'Fragment'
     assert op.input.filter == {"label": "image"}
 
-    assert op.output.fragment_type == Fragment
+    assert op.output.fragment_type == 'Fragment'
     assert op.output.multiple is False
     assert op.output.label == "text"
 
@@ -108,11 +108,11 @@ def test_multiple_operation(ingestion):
     assert op.name == "multi_fragment_op"
 
     assert op.input.name == "fragment"
-    assert op.input.fragment_type == Fragment
+    assert op.input.fragment_type == 'Fragment'
     assert op.input.filter == {}
 
     assert op.output.multiple
-    assert op.output.fragment_type == Fragment
+    assert op.output.fragment_type == 'Fragment'
     assert op.output.label is None
 
 
@@ -121,9 +121,9 @@ def test_multiple_operation_annotated(ingestion):
 
     assert op.name == "multi_fragment_op_annotated"
     assert op.input.name == "fragment"
-    assert op.input.fragment_type == Fragment
+    assert op.input.fragment_type == 'Fragment'
     assert op.input.filter == {"label": "image"}
 
     assert op.output.multiple
-    assert op.output.fragment_type == Fragment
+    assert op.output.fragment_type == 'Fragment'
     assert op.output.label == "text"

@@ -1,7 +1,12 @@
 from abc import ABC, abstractmethod
 from pathlib import Path
 from urllib import request
-from az_ai.ingestion.schema import Fragment, FragmentSpec, Document
+from az_ai.ingestion.schema import (
+    Fragment,
+    FragmentSpec,
+    OperationsLog,
+    OperationsLogEntry,
+)
 
 
 class Repository(ABC):
@@ -13,6 +18,27 @@ class Repository(ABC):
     @abstractmethod
     def store(self, fragment: Fragment) -> Fragment:
         """Store the given fragment."""
+        pass
+
+    @abstractmethod
+    def update(self, fragment: Fragment) -> Fragment:
+        """Update the given fragment."""
+        pass
+
+    @abstractmethod
+    def find(self, spec: FragmentSpec = None) -> list[Fragment]:
+        """
+        Get all fragments matching the given spec.
+        """
+        pass
+
+    @abstractmethod
+    def add_operations_log_entry(
+        self, operations_log_entry: OperationsLogEntry
+    ) -> None:
+        """
+        Add an operation log entry to the repository.
+        """
         pass
 
 
@@ -27,10 +53,12 @@ class DuplicateFragmentError(Exception):
 
     pass
 
+
 class FragmentContentNotFoundError(Exception):
     """Exception raised when a fragment does not have a content URL."""
 
     pass
+
 
 class LocalRepository(Repository):
     def __init__(self, path: Path = None):
@@ -43,10 +71,14 @@ class LocalRepository(Repository):
         self._contents_path = path / "_content"
         self._fragments_path = path / "_fragments"
         self._human_path = path / "_human"
+        self._operations_log_path = path / "_operations_log.json"
         self._contents_path.mkdir(parents=True, exist_ok=True)
         self._fragments_path.mkdir(parents=True, exist_ok=True)
         self._human_path.mkdir(parents=True, exist_ok=True)
-
+        if not self._operations_log_path.exists():
+            self._operations_log_path.write_text(
+                OperationsLog().model_dump_json(indent=2)
+            )
 
     def get(self, reference: str) -> Fragment:
         """Get the value for the given key."""
@@ -68,7 +100,7 @@ class LocalRepository(Repository):
         return fragment
 
     def update(self, fragment: Fragment) -> Fragment:
-        """Store the given fragment."""
+        """Update the given fragment."""
 
         fragment_path = self._fragment_path(fragment)
         if not fragment_path.exists():
@@ -76,6 +108,7 @@ class LocalRepository(Repository):
         fragment_path.write_text(fragment.model_dump_json(indent=2))
 
         return fragment
+
     def find(self, spec: FragmentSpec = None) -> list[Fragment]:
         """
         Get all fragments matching the given spec.
@@ -91,14 +124,50 @@ class LocalRepository(Repository):
                     fragments.append(fragment)
 
         return fragments
-    
+
+    def add_operations_log_entry(
+        self, operations_log_entry: OperationsLogEntry
+    ) -> None:
+        """
+        Add an operation log entry to the repository.
+        """
+        log = self._read_log()
+        log.entries.append(operations_log_entry)
+        self._write_log(log)
+
+    def find_operations_log_entry(
+        self, operation_name: str = None, input_fragment_ref: str | Fragment = None
+    ):
+        """
+        Find an operation log entry by operation_name and/or input_fragment_ref
+        """
+        if input_fragment_ref and isinstance(input_fragment_ref, Fragment):
+            input_fragment_ref = input_fragment_ref.id
+        return [
+            entry
+            for entry in self._read_log().entries
+            if (not operation_name or operation_name == entry.operation_name)
+            and (
+                not input_fragment_ref
+                or input_fragment_ref in entry.input_refs
+            )
+        ]
+
+    def _read_log(self) -> OperationsLog:
+        return OperationsLog.parse_file(self._operations_log_path)
+
+    def _write_log(self, log: OperationsLog):
+        self._operations_log_path.write_text(log.model_dump_json(indent=2))
+
     def get_content(self, reference: str) -> bytes:
         """Get the content of the fragment."""
         fragment = self.get(reference)
 
         if not fragment.content_url:
-            raise FragmentContentNotFoundError(f"Fragment {reference} does not have a content URL.")
-        
+            raise FragmentContentNotFoundError(
+                f"Fragment {reference} does not have a content URL."
+            )
+
         if fragment.content_ref:
             return self._get_content_from_ref(fragment)
 
@@ -107,7 +176,7 @@ class LocalRepository(Repository):
         self.update(fragment)
 
         return content
-    
+
     def _store_content(self, fragment: Fragment, content: bytes) -> None:
         """
         Store the content of the fragment.
@@ -125,7 +194,9 @@ class LocalRepository(Repository):
         """
         human_path = self._human_path / fragment.human_name()
         if human_path.exists():
-            raise DuplicateFragmentError(f"Fragment {fragment.id} human content name already exists.")
+            raise DuplicateFragmentError(
+                f"Fragment {fragment.id} human content name already exists."
+            )
         if not human_path.parent.exists():
             human_path.parent.mkdir(parents=True, exist_ok=True)
         human_path.symlink_to(content_path)
@@ -139,7 +210,9 @@ class LocalRepository(Repository):
             with request.urlopen(content_url) as response:
                 return response.read()
         except Exception as e:
-            raise FragmentContentNotFoundError(f"Failed to fetch content from {content_url}: {e}")
+            raise FragmentContentNotFoundError(
+                f"Failed to fetch content from {content_url}: {e}"
+            )
 
     def _get_content_from_ref(self, fragment: Fragment) -> bytes:
         content_path = self._content_path(fragment)
@@ -159,11 +232,13 @@ class LocalRepository(Repository):
         else:
             reference = fragment_or_ref
         return self._path / self._fragments_path / f"{reference}.json"
-      
+
     def _content_path(self, fragment: FragmentNotFoundError) -> Path:
         """
         Get the path to the content file.
         """
         if not fragment.content_ref:
-            raise FragmentContentNotFoundError(f"Fragment {fragment.id} does not have a content reference.")
+            raise FragmentContentNotFoundError(
+                f"Fragment {fragment.id} does not have a content reference."
+            )
         return self._contents_path / fragment.content_ref
