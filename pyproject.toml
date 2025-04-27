@@ -46,3 +46,30 @@ dev-dependencies = [
     "pytest>=8.3.5",
     "pytest-cov>=6.0.0",
 ]
+
+[tool.ruff]
+line-length = 120
+fix = true
+target-version = "py312"
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+docstring-code-format = true
+
+[tool.ruff.lint]
+select = [
+    # pycodestyle
+    "E",
+    # Pyflakes
+    "F",
+    # pyupgrade
+    "UP",
+    # flake8-bugbear
+    "B",
+    # flake8-simplify
+    "SIM",
+    # isort
+    "I",
+]
+extend-fixable = ["E", "F", "UP", "B", "SIM", "I"]
