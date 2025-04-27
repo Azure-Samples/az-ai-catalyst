@@ -42,6 +42,7 @@ dependencies = [
     { name = "pytest" },
     { name = "python-dotenv" },
     { name = "rich" },
+    { name = "semantic-text-splitter" },
 ]
 
 [package.dev-dependencies]
@@ -65,6 +66,7 @@ requires-dist = [
     { name = "pytest", specifier = ">=8.3.5" },
     { name = "python-dotenv", specifier = ">=1.1.0" },
     { name = "rich", specifier = ">=14.0.0" },
+    { name = "semantic-text-splitter", specifier = ">=0.25.1" },
 ]
 
 [package.metadata.requires-dev]
@@ -737,6 +739,23 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/a1/53/830aa4c3066a8ab0ae9a9955976fb770fe9c6102117c8ec4ab3ea62d89e8/rich-14.0.0.tar.gz", hash = "sha256:82f1bc23a6a21ebca4ae0c45af9bdbc492ed20231dcb63f297d6d1021a9d5725", size = 224078 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/0d/9b/63f4c7ebc259242c89b3acafdb37b41d1185c07ff0011164674e9076b491/rich-14.0.0-py3-none-any.whl", hash = "sha256:1c9491e1951aac09caffd42f448ee3d04e58923ffe14993f6e83068dc395d7e0", size = 243229 },
+]
+
+[[package]]
+name = "semantic-text-splitter"
+version = "0.25.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/35/94/427520c4658d79ebb24d0cea8b4302bb84e0f14e2705db09c18daf12b300/semantic_text_splitter-0.25.1.tar.gz", hash = "sha256:8d5e54e54d9ede799d46231f408475cd4f6ed0173b8b263d343ddbae1abb7286", size = 281476 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/01/da/6cf5b14272510e621da47eb51d1b65e379db6c8022979cc3a4157be1d4e5/semantic_text_splitter-0.25.1-cp39-abi3-macosx_10_12_x86_64.whl", hash = "sha256:8ab01a18e9cf3cfb675c919a7588de59ee0aa1a6162f1a5721df0877943f0b34", size = 8099079 },
+    { url = "https://files.pythonhosted.org/packages/30/52/9bfa1e89517e0b8b816519e538356209f9eaa7ca50da194ecdc0e5a18c8f/semantic_text_splitter-0.25.1-cp39-abi3-macosx_11_0_arm64.whl", hash = "sha256:4807141c0fbe8bc6e0eab63033751afe25c6db4a8c7b726b9b1c8862c5540e40", size = 8088277 },
+    { url = "https://files.pythonhosted.org/packages/be/23/518a437e7ad00f5108ddaf319c6c272388e2af8002ea3552bb7d335669e2/semantic_text_splitter-0.25.1-cp39-abi3-manylinux_2_28_aarch64.whl", hash = "sha256:364a01a5b7f494c84f6d54574339ab26e036635851b082f1375398ef835b589c", size = 8299507 },
+    { url = "https://files.pythonhosted.org/packages/a5/18/5203dd6b70201fd966ad66c4906f0a87306eaf23df695a7e143f2a3b8421/semantic_text_splitter-0.25.1-cp39-abi3-manylinux_2_28_armv7l.whl", hash = "sha256:12017a83118130ff910e65649571dbbd2a474a55fe11d9d633d5b8afd4990251", size = 8174801 },
+    { url = "https://files.pythonhosted.org/packages/5d/42/176d05162e6ffc1f8c8493c21dfcc9c86cdad0b0c76ce55c567e113205ec/semantic_text_splitter-0.25.1-cp39-abi3-manylinux_2_28_ppc64le.whl", hash = "sha256:9995edc7702ed040623504ba08599a596b414da7fbb6cbb3e954cfd08dc84ba6", size = 8508191 },
+    { url = "https://files.pythonhosted.org/packages/2e/ca/e1fbd9eb24fecf5a99d4550e80e2a4d579c98eaa98d3601de70b9a157391/semantic_text_splitter-0.25.1-cp39-abi3-manylinux_2_28_s390x.whl", hash = "sha256:36a45e98bd11e0ba1765be397bb2996bda1d6bb17b4d46ed06a701635aea3ede", size = 8747519 },
+    { url = "https://files.pythonhosted.org/packages/9a/5f/18ddb8d525aa6f5f3b8e10620e252803eee01b8c29b7e9dd38a05f3b77ee/semantic_text_splitter-0.25.1-cp39-abi3-manylinux_2_28_x86_64.whl", hash = "sha256:a53aead5966a5c9e181f4f27c1a7e1e5ea58e38074069980897e92b1ad7964c7", size = 8401410 },
+    { url = "https://files.pythonhosted.org/packages/46/f3/fe63cf323399ef1fd7a6096ee797b482153b282b204cf831517ca8c881f6/semantic_text_splitter-0.25.1-cp39-abi3-win32.whl", hash = "sha256:7ec804fe3652cc1e68eedba6c9fd39384bbb9e511ad487f0e20a604d8045d387", size = 7629047 },
+    { url = "https://files.pythonhosted.org/packages/ea/41/2b78f427c8a8503d9be86fd94ef4cfad29334bd4d970b6e2748b1e82facf/semantic_text_splitter-0.25.1-cp39-abi3-win_amd64.whl", hash = "sha256:12300954b2e76d49e2536c34eb1fc3c12f8500c78ad013b798b30183752e9b36", size = 7802767 },
 ]
 
 [[package]]
