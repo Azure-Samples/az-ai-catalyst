@@ -1,8 +1,6 @@
 import base64
 import logging
 from io import BytesIO
-from typing import Any, List, Optional, Sequence
-from pathlib import Path
 
 import pymupdf
 from azure.ai.documentintelligence.models import (
@@ -31,9 +29,6 @@ class MarkdownFigureExtractor:
                 self.document_intelligence_result.figures
             )
         ]
-
-        Path("/tmp/toto.md").write_text(self.content, encoding="utf-8")
-
         return results
 
     def _extract_figure_from_page(
@@ -48,10 +43,8 @@ class MarkdownFigureExtractor:
         This method performs the following steps:
         1. Retrieves the bounding box, content text, caption, and page number for the given figure.
         2. Crops the corresponding page image to produce the figure image.
-        3. Generates a data URL and a textual description for the image.
-        4. Formats a Markdown-compatible image description with an optional <figcaption>.
-        5. Updates the document's text by injecting the Markdown image description.
-        6. Constructs and returns an ImageNode containing the image data, URL, description, and related metadata.
+        3. Generates a data URL 
+        4. Return an image Fragment containing the image data URL related metadata.
 
         Args:
             document (DocumentIntelligenceDocument): The document model containing pages and figures.
@@ -59,13 +52,7 @@ class MarkdownFigureExtractor:
             figure (DocumentFigure): Metadata object representing the figure to extract.
 
         Returns:
-            ImageNode: A node encapsulating:
-                - text (str): Markdown-formatted figure description.
-                - image (str): Base64-encoded image data.
-                - image_url (str): The image represented as a data URL.
-
-        Side effects:
-            Updates `document.text` by injecting a figure reference in the Markdown in place of the original figure.
+            Fragment: A Fragment object containing the extracted figure image and metadata.
         """
         logger.debug(
             "Extracting figure index %d and id '%s'...", figure_index, figure.id
@@ -86,18 +73,6 @@ class MarkdownFigureExtractor:
             bounding_box,
         )
         image_data_url = self._image_data_url(image, "image/png")
-        #image_description = self._describe_image(image_data_url, figure_caption)
-        #logger.debug("Image description: %s", image_description)
-
-        # TODO: handle image description properly
-        image_description="TODO: figure description"
-
-        if figure_caption and figure_caption.strip():
-            markdown_image_description = (
-                f"<figcaption>{figure_caption}</figcaption>\n{image_description}"
-            )
-        else:
-            markdown_image_description = image_description
 
         return Fragment.create_from(
             fragment,
@@ -198,39 +173,3 @@ class MarkdownFigureExtractor:
 
     def _image_data_url(self, image: Image, mime_type):
         return f"data:{mime_type};base64,{self._image_base64(image, mime_type)}"
-
-    # TODO: do we still need this?
-    def _generate_page_images(self, file) -> List[BytesIO]:
-        pages = []
-        with pymupdf.open(file) as doc:
-            for page_num, page in enumerate(doc):
-                logger.info("Converting page %d of %s to image...", page_num + 1, file)
-                page_num += 1
-                pix = page.get_pixmap()
-                image = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
-                buffer = BytesIO()
-                image.save(buffer, format="png")
-                buffer.seek(0)
-                pages.append(buffer)
-        return pages
-
-    def _update_figure_description(self, md_content, img_description, idx):
-        logger.debug(f"Updating figure description {idx}...")
-        start_substring = "<figure>"
-        end_substring = "</figure>"
-        new_string = f"\n![](figures/{idx})\n{img_description}\n"
-        new_md_content = md_content
-        start_index = 0
-        for i in range(idx + 1):
-            start_index = md_content.find(start_substring, start_index)
-            if start_index == -1:
-                break
-            else:
-                start_index += len(start_substring)
-        if start_index != -1:
-            end_index = md_content.find(end_substring, start_index)
-            if end_index != -1:
-                new_md_content = (
-                    md_content[:start_index] + new_string + md_content[end_index:]
-                )
-        return new_md_content
