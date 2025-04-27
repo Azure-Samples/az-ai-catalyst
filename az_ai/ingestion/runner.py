@@ -14,7 +14,7 @@ from az_ai.ingestion.schema import (
     OperationsLogEntry,
     OperationSpec,
 )
-
+from az_ai.ingestion.tools.rich import fragment_as_table
 
 class OperationError(Exception):
     pass
@@ -66,32 +66,35 @@ class IngestionRunner:
                     )
                     self._run_operation_on_fragment(operation, fragment)
 
+
     def _run_operation_on_fragment(self, operation: OperationSpec, fragment: Fragment):
         result = operation.func(fragment)
-
-        if not operation.output.multiple:
-            result = [result]
         if result is None:
             raise OperationError(
                 f"Operation {operation.name} returned None for fragment {fragment.id}"
             )
-        for res in result:
+        results = result if operation.output.multiple else [result]
+
+        for result in results:
             output_spec = operation.output.spec()
-            if not output_spec.matches(res):
+            if not output_spec.matches(result):
                 self._console.log(
-                    f"Result {res} does not match output spec {escape(str(output_spec))}"
+                    f"Result {result} does not match output spec {escape(str(output_spec))}"
                 )
                 raise OperationError(
                     f"Non compliant Fragment returned for operation {operation.name}: {escape(str(fragment))}"
                 )
             self._console.log(
-                f"    -> Storing {escape(str(res))}..."
+                f"    -> Storing {escape(str(result))}..."
             )
-            self.repository.store(res)
+            self.repository.store(result)
+            self._console.log(fragment_as_table(result))
+
         self.repository.add_operations_log_entry(
             OperationsLogEntry.create_from(
                 operation=operation,
                 input_fragments=[fragment],
-                output_fragments=result,
+                output_fragments=results,
             )
         )
+
