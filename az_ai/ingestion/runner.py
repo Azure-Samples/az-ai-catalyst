@@ -8,7 +8,7 @@ from az_ai.ingestion.repository import Repository
 from az_ai.ingestion.schema import (
     Document,
     Fragment,
-    FragmentSpec,
+    FragmentSelector,
     OperationInputSpec,
     OperationOutputSpec,
     OperationsLogEntry,
@@ -43,35 +43,63 @@ class IngestionRunner:
                 raise e
 
     def _run_operation(self, operation: OperationSpec):
-        specs = operation.input.specs()
         self._console.log(f"Running {escape(str(operation))}: ")
-        for spec in specs:
-            fragments = self.repository.find(spec)
+        fragments = self.repository.find(operation.input.selector())
+        if operation.input.multiple:
+            self._run_operation_on_multiple_fragments(operation, fragments)
+        else:
             for fragment in fragments:
-                if (
-                    len(
-                        self.repository.find_operations_log_entry(
-                            operation_name=operation.name,
-                            input_fragment_ref=fragment.id,
-                        )
-                    )
-                    > 0
-                ):
-                    self._console.log(
-                        f"  Skip {escape(fragment.human_file_name())} ({fragment.id})..."
-                    )
-                else:
-                    self._console.log(
-                        f"  Apply on {escape(fragment.human_file_name())} ({fragment.id})..."
-                    )
-                    self._run_operation_on_fragment(operation, fragment)
+                self._run_operation_on_fragment(operation, fragment)
 
+    def _run_operation_on_multiple_fragments(self, operation: OperationSpec, fragments: list[Fragment]):
+        results = operation.func(fragments)
+        if (
+            len(
+                self.repository.find_operations_log_entry(
+                    operation_name=operation.name,
+                    input_fragment_refs=fragments,
+                )
+            )
+            > 0
+        ):
+            self._console.log(
+                f"  Skip {escape(str(fragments))}..."
+            )
+            return
+        self._console.log(
+            f"  Apply on {escape(str(fragments))}..."
+        )
+
+        self._process_operation_result(operation, fragments, results)
 
     def _run_operation_on_fragment(self, operation: OperationSpec, fragment: Fragment):
+        if (
+            len(
+                self.repository.find_operations_log_entry(
+                    operation_name=operation.name,
+                    input_fragment_refs=[fragment.id],
+                )
+            )
+            > 0
+        ):
+            self._console.log(
+                f"  Skip {escape(str(fragment))}..."
+            )
+            return
+        self._console.log(
+            f"  Apply on {escape(str(fragment))}..."
+        )
         result = operation.func(fragment)
+        self._process_operation_result(operation, [fragment], result)
+
+
+    def _process_operation_result(
+        self, operation: OperationSpec, fragments: list[Fragment], result: Fragment | list[Fragment]
+    ):
+    
         if result is None:
             raise OperationError(
-                f"Operation {operation.name} returned None for fragment {fragment.id}"
+                f"Operation {operation.name} returned None for fragment {escape(str([f.id for f in fragments]))}"
             )
         results = result if operation.output.multiple else [result]
 
@@ -82,7 +110,7 @@ class IngestionRunner:
                     f"Result {result} does not match output spec {escape(str(output_spec))}"
                 )
                 raise OperationError(
-                    f"Non compliant Fragment returned for operation {operation.name}: {escape(str(fragment))}"
+                    f"Non compliant Fragment returned for operation {operation.name}: {escape(str([f.id for f in fragments]))}"
                 )
             self._console.log(
                 f"    -> Storing {escape(str(result))}..."
@@ -93,7 +121,7 @@ class IngestionRunner:
         self.repository.add_operations_log_entry(
             OperationsLogEntry.create_from(
                 operation=operation,
-                input_fragments=[fragment],
+                input_fragments=fragments,
                 output_fragments=results,
             )
         )

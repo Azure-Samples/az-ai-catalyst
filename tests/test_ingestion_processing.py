@@ -10,20 +10,20 @@ from az_ai.ingestion.repository import FragmentNotFoundError, LocalRepository
 def empty_repository(tmpdir):
     return LocalRepository(path=Path(tmpdir))
 
-@pytest.fixture()
+@pytest.fixture(scope="function")
 def single_step_ingestion(empty_repository):
     ingestion = Ingestion(repository=empty_repository)
 
     @ingestion.operation()
-    def simple(input: Document) -> Annotated[Fragment, "document_label"]:
+    def simple(input: Document) -> Annotated[Fragment, "output_label"]:
         return Fragment(
             id="output_id",
-            label=input.label,
+            label="output_label",
             metadata=input.metadata | { "extra_key": "extra_value" },
         )
     return ingestion
 
-@pytest.fixture()
+@pytest.fixture(scope="function")
 def two_step_ingestion(empty_repository):
     ingestion = Ingestion(repository=empty_repository)
 
@@ -70,7 +70,7 @@ def repository(tmpdir, document, fragment):
 
 
 
-def test_ingestion(single_step_ingestion, empty_repository, document):
+def test_single_ingestion(single_step_ingestion, empty_repository, document):
     assert len(empty_repository.find()) == 0
     empty_repository.store(document)
 
@@ -78,7 +78,7 @@ def test_ingestion(single_step_ingestion, empty_repository, document):
 
     fragment = empty_repository.get("output_id")
     assert fragment.id == "output_id"
-    assert fragment.label == document.label
+    assert fragment.label == "output_label"
     assert fragment.metadata == document.metadata | { "extra_key": "extra_value" }
 
     assert len(empty_repository.find()) == 2
@@ -87,7 +87,7 @@ def test_double_ingestion(two_step_ingestion, empty_repository, document):
     assert len(empty_repository.find()) == 0
     empty_repository.store(document)
 
-    print(two_step_ingestion.mermaid())
+    two_step_ingestion.mermaid()
     two_step_ingestion()
 
     fragment = empty_repository.get("output_id")

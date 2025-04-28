@@ -18,8 +18,8 @@ def fragment():
         ("di", "application/octet-stream", ["test"], None, "test/di.bin"),
         ("figure", "image/png", [], None, "figure.png"),
         ("figure", "image/png", ["test"], None, "test/figure.png"),
-        ("figure", "image/png", ["test"], 1, "test/figure_1.png"),
-        ("figure", "image/png", ["test"], 2, "test/figure_2.png"),
+        ("figure", "image/png", ["test"], 1, "test/figure_001.png"),
+        ("figure", "image/png", ["test"], 2, "test/figure_002.png"),
     ],
 )
 def test_fragment_human_file_name_with_elements(

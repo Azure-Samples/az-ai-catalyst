@@ -1,20 +1,23 @@
+import re
 import base64
 import logging
 from io import BytesIO
 
 import pymupdf
 from azure.ai.documentintelligence.models import (
-    DocumentFigure,
     AnalyzeResult,
+    DocumentFigure,
 )
-
 from PIL import Image
-
 
 from az_ai.ingestion import Fragment
 
 logger = logging.getLogger(__name__)
 
+def extract_code_block(markdown: str) -> str:
+    compiled_pattern = re.compile(r"```(?:\w+\s+)?(.*?)```", re.DOTALL)
+    matches = compiled_pattern.findall(markdown)
+    return [code.strip() for code in matches]    
 
 class MarkdownFigureExtractor:
     def extract(self, fragment: Fragment) -> list[Fragment]:
@@ -73,6 +76,15 @@ class MarkdownFigureExtractor:
             bounding_box,
         )
         image_data_url = self._image_data_url(image, "image/png")
+        update_metadata = {
+                "page_number": page_number,
+                "figure_index": figure_index,
+                "figure_id": figure.id,
+                "data_url": image_data_url,
+                "document_intelligence_result": None,
+            }
+        if figure_caption:
+            update_metadata["caption"] = figure_caption
 
         return Fragment.create_from(
             fragment,
@@ -80,12 +92,7 @@ class MarkdownFigureExtractor:
             human_index=figure_index,
             content=self._image_binary(image, "image/png"),
             mime_type="image/png",
-            extra_metadata={
-                "page_number": page_number,
-                "figure_index": figure_index,
-                "figure_id": figure.id,
-                "data_url": image_data_url,
-            },
+            update_metadata=update_metadata,
         )
 
     def _extract_bounding_box(

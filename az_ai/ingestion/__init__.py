@@ -1,12 +1,12 @@
 from .ingestion import Ingestion
 from .runner import OperationError
-from .schema import Document, Fragment, FragmentSpec, Chunk
+from .schema import Document, Fragment, FragmentSelector, Chunk
 
 __all__ = [
     "Fragment",
     "Document",
     "Ingestion",
     "Chunk",
-    "FragmentSpec",
+    "FragmentSelector",
     "OperationError",
 ]

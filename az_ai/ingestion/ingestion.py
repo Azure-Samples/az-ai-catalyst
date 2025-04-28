@@ -18,15 +18,13 @@ from az_ai.ingestion.schema import (
     CommandFunctionType,
     Document,
     Fragment,
-    FragmentSpec,
+    FragmentSelector,
     OperationInputSpec,
     OperationOutputSpec,
     OperationSpec,
 )
 
 logger = logging.getLogger(__name__)
-
-
 
 
 class Ingestion:
@@ -53,6 +51,27 @@ class Ingestion:
 
         runner.run(*args, **kwargs)
 
+        if "search_client" in kwargs:
+            self.update_index(kwargs["search_client"])
+
+    def update_index(self, search_client):
+        """
+        Update the index with the new fragments.
+        """
+        documents = []
+        for fragment in self.repository.find(FragmentSelector(fragment_type="Chunk")):
+            document = {
+                "id": fragment.id,
+                "content": fragment.content.decode("utf-8"),
+                "vector": fragment.vector,
+            }
+            for key, value in fragment.metadata.items():
+                if value:
+                    document[key] = str(value)
+            documents.append(document)
+
+        search_client.upload_documents(documents)
+
     def mermaid(self) -> str:
         """
         Generate a mermaid diagram of the ingestion pipeline.
@@ -63,24 +82,20 @@ class Ingestion:
             fragment_specs.add(operation.output.spec())
         for spec in fragment_specs:
             fragment_label = spec.fragment_type
-            if spec.label:
-                fragment_label += f"[{spec.label}]"
+            if spec.labels:
+                fragment_label += f"[{spec.labels[0]}]"
             shape = "doc"
-            diagram += (
-                f"""    {spec}@{{ shape: {shape}, label: "{fragment_label}" }}\n"""
-            )
+            diagram += f"""    {spec}@{{ shape: {shape}, label: "{fragment_label}" }}\n"""
 
         for operation in self.operations().values():
             diagram += f"""    {operation.name}@{{ shape: rect, label: "{operation.name}" }}\n"""
             diagram += f"""    {operation.name} --> {operation.output.spec()}\n"""
-            for spec in operation.input.specs():
-                diagram += f"""    {spec} --> {operation.name}\n"""
+            spec = operation.input.selector()
+            diagram += f"""    {spec} --> {operation.name}\n"""
 
         return diagram
 
-    def add_document_from_file(
-        self, file: str | Path, mime_type: str = None
-    ) -> Document:
+    def add_document_from_file(self, file: str | Path, mime_type: str = None) -> Document:
         """
         Create a Document fragment from a file.
         """
@@ -91,7 +106,7 @@ class Ingestion:
         if not file.exists():
             raise OperationError(f"File {file} does not exist.")
 
-        if self.repository.find(FragmentSpec(fragment_type="Document", label="start")):
+        if self.repository.find(FragmentSelector(fragment_type="Document", labels=["start"])):
             return
 
         if mime_type is None:
@@ -101,13 +116,13 @@ class Ingestion:
         document = Document(
             label="start",
             content_url=file.as_uri(),
-            mime_type=mime_type, # this is the fragment mime type
+            mime_type=mime_type,  # this is the fragment mime type
             parent_names=[file.stem],
             metadata={
                 "file_name": file.name,
                 "file_path": str(file),
                 "file_size": file.stat().st_size,
-                "file_type": mime_type, # this is the original file mime type
+                "file_type": mime_type,  # this is the original file mime type
             },
         )
 
@@ -148,20 +163,36 @@ class Ingestion:
             logger.debug("Parameter: %s, Type: %s", param_name, param_type)
 
             filter = {}
+
             if get_origin(param_type) is Annotated:
                 param_type, filter = get_args(param_type)
                 if not isinstance(filter, dict):
                     raise OperationError(
                         f"Operation function parameter {param_name} filter must be a dict not {filter}"
                     )
+            else:
+                param_type = param.annotation
 
-            if not issubclass(param_type, Fragment):
-                raise OperationError(
-                    f"Operation function parameter {param_name} must be of type Fragment not {param_type}"
-                )
+            base_type = self._get_base_type(param_type)
+            multiple = False
+            if hasattr(base_type, "__origin__"):
+                if base_type.__origin__ is list:
+                    multiple = True
+                    base_type = get_args(base_type)[0]
+                else:
+                    raise OperationError(
+                        f"Operation function {func.__name__} must have a return type of list[Fragment] or Fragment not {base_type}"
+                    )
+            else:
+                if not issubclass(base_type, Fragment):
+                    raise OperationError(
+                        f"Operation function parameter {param_name} must be of type Fragment not {param_type}"
+                    )
+
             input = OperationInputSpec(
                 name=param_name,
-                fragment_type=param_type.__name__,
+                fragment_type=base_type.__name__,
+                multiple=multiple,
                 filter=filter,
             )
         return input
@@ -179,15 +210,11 @@ class Ingestion:
         label = None
         return_annotation = signature.return_annotation
         if return_annotation is inspect.Signature.empty:
-            raise OperationError(
-                f"Operation function {func.__name__} must have a return type annotation."
-            )
+            raise OperationError(f"Operation function {func.__name__} must have a return type annotation.")
         if get_origin(return_annotation) is Annotated:
             return_annotation, label = get_args(return_annotation)
             if not isinstance(label, str):
-                raise OperationError(
-                    f"Operation function return Fragment label must be a str not {label}"
-                )
+                raise OperationError(f"Operation function return Fragment label must be a str not {label}")
         else:
             raise OperationError(
                 f"""Operation {func.__name__} must have a return type of Annotated[Fragment, "label"] not {return_annotation}"""

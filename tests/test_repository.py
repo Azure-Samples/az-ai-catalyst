@@ -2,14 +2,13 @@ from pathlib import Path
 
 import pytest
 
-from az_ai.ingestion import Fragment, FragmentSpec, Document
+from az_ai.ingestion import Document, Fragment, FragmentSelector
 from az_ai.ingestion.repository import (
+    DuplicateFragmentError,
     FragmentNotFoundError,
     LocalRepository,
-    DuplicateFragmentError,
-    FragmentContentNotFoundError,
 )
-from az_ai.ingestion.schema import OperationsLogEntry, FragmentSpec
+from az_ai.ingestion.schema import OperationsLogEntry
 
 
 @pytest.fixture
@@ -61,8 +60,8 @@ def test_update(repository, fragment):
 
 
 def test_find_fragment(repository, fragment):
-    spec = FragmentSpec(fragment_type="Fragment", label="fragment_label")
-    retrieved_fragments = repository.find(spec)
+    selector = FragmentSelector(fragment_type="Fragment", labels=["fragment_label"])
+    retrieved_fragments = repository.find(selector)
 
     assert len(retrieved_fragments) == 1
     assert retrieved_fragments[0] == fragment
@@ -72,14 +71,16 @@ def test_find_document(repository, document):
     retrieved_fragments = repository.find()
     assert len(retrieved_fragments) == 2
 
-    spec = FragmentSpec(fragment_type="Document", label="doc_label")
-    retrieved_fragments = repository.find(spec)
+    selector = FragmentSelector(fragment_type="Document", labels=["doc_label"])
+    retrieved_fragments = repository.find(selector)
 
     assert len(retrieved_fragments) == 1
+    retrieved_fragments[0].content_ref = None
+    retrieved_fragments[0].content = None
     assert retrieved_fragments[0] == document
 
-    spec = FragmentSpec(fragment_type="Document", label="wrong_doc_label")
-    retrieved_fragments = repository.find(spec)
+    selector = FragmentSelector(fragment_type="Document", labels=["wrong_doc_label"])
+    retrieved_fragments = repository.find(selector)
 
     assert len(retrieved_fragments) == 0
 
@@ -88,7 +89,11 @@ def test_find_all(repository, fragment, document):
     retrieved_fragments = repository.find()
 
     assert len(retrieved_fragments) == 2
-    assert all(f in retrieved_fragments for f in [fragment, document])
+    for fragment in retrieved_fragments:
+        fragment.content_ref = None
+        fragment.content = None
+    assert fragment in retrieved_fragments 
+    assert document in retrieved_fragments 
 
 
 def test_fragment_not_found(repository):
@@ -160,12 +165,12 @@ def test_add_operations_log_entry(empty_repository):
     assert entries == [entry2, entry3]
 
     entries = empty_repository.find_operations_log_entry(
-        operation_name="operation_name2", input_fragment_ref="bar"
+        operation_name="operation_name2", input_fragment_refs=["bar"]
     )
     assert entries == [entry2]
 
     entries = empty_repository.find_operations_log_entry(
-        operation_name="operation_name2", input_fragment_ref="baz"
+        operation_name="operation_name2", input_fragment_refs=["baz"]
     )
     assert entries == [entry3]
 

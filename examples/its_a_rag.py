@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import logging
 import os
+import re
 from pathlib import Path
 from typing import Annotated
 
@@ -8,18 +9,35 @@ import dotenv
 from azure.ai.documentintelligence import DocumentIntelligenceClient
 from azure.ai.documentintelligence.models import (
     AnalyzeDocumentRequest,
-    AnalyzeResult,
     DocumentAnalysisFeature,
     DocumentContentFormat,
 )
 from azure.ai.projects import AIProjectClient
 from azure.identity import DefaultAzureCredential
+from azure.search.documents import SearchClient
 from azure.search.documents.indexes import SearchIndexClient
+from azure.search.documents.indexes.models import (
+    AzureOpenAIVectorizer,
+    AzureOpenAIVectorizerParameters,
+    HnswAlgorithmConfiguration,
+    HnswParameters,
+    SearchableField,
+    SearchField,
+    SearchFieldDataType,
+    SearchIndex,
+    SemanticConfiguration,
+    SemanticField,
+    SemanticPrioritizedFields,
+    SemanticSearch,
+    SimpleField,
+    VectorSearch,
+    VectorSearchProfile,
+    VectorSearchVectorizer,
+)
 
 import az_ai.ingestion
 from az_ai.ingestion import Chunk, Document, Fragment
 from az_ai.ingestion.repository import LocalRepository
-from az_ai.ingestion.tools.markdown import MarkdownFigureExtractor
 
 dotenv.load_dotenv()
 
@@ -50,6 +68,91 @@ search_index_client = SearchIndexClient(
     endpoint=os.getenv("AZURE_AI_SEARCH_ENDPOINT"),
     credential=credential,
 )
+
+fields = [
+    SimpleField(
+        name="id",
+        type=SearchFieldDataType.String,
+        key=True,
+        sortable=True,
+        filterable=True,
+        facetable=True,
+        analyzer_name="keyword",
+    ),
+    SearchableField(
+        name="content",
+        type=SearchFieldDataType.String,
+        searchable=True,
+        analyzer_name="standard.lucene",
+    ),
+    SearchField(
+        name="vector",
+        type=SearchFieldDataType.Collection(SearchFieldDataType.Single),
+        hidden=True,
+        searchable=True,
+        filterable=False,
+        sortable=False,
+        facetable=False,
+        vector_search_dimensions=3072,
+        vector_search_profile_name="embedding_config",
+    ),
+    SimpleField(
+        name="page_number",
+        type=SearchFieldDataType.String,
+        filterable=True,
+        facetable=True,
+    ),
+    SimpleField(
+        name="file_name",
+        type=SearchFieldDataType.String,
+        filterable=True,
+        sortable=False,
+        facetable=True,
+    ),
+    SimpleField(
+        name="url",
+        type=SearchFieldDataType.String,
+        filterable=True,
+        sortable=False,
+        facetable=False,
+    ),
+    SimpleField(
+        name="data_url",
+        type="Edm.String",
+        searchable=False,
+        filterable=False,
+        facetable=False,
+        sortable=False,
+    ),
+]
+index = SearchIndex(
+    name="itsarag",
+    fields=fields,
+    vector_search=VectorSearch(
+        algorithms=[
+            HnswAlgorithmConfiguration(
+                name="hnsw_config",
+                parameters=HnswParameters(metric="cosine"),
+            )
+        ],
+        profiles=[
+            VectorSearchProfile(
+                name="embedding_config",
+                algorithm_configuration_name="hnsw_config",
+            ),
+        ],
+    ),
+)
+
+
+result = search_index_client.create_or_update_index(index=index)
+
+search_client = SearchClient(
+    endpoint=os.getenv("AZURE_AI_SEARCH_ENDPOINT"),
+    credential=credential,
+    index_name=index.name,
+)
+
 
 
 ingestion = az_ai.ingestion.Ingestion(
@@ -99,7 +202,10 @@ def extract_figures(
     2. Create a new image fragment for each figure.
     3. Insert a figure reference in the document_intelligence_result fragment Markdown.
     """
+    from az_ai.ingestion.tools.markdown import MarkdownFigureExtractor
+
     return MarkdownFigureExtractor().extract(fragment)
+
 
 @ingestion.operation()
 def describe_figure(
@@ -109,10 +215,58 @@ def describe_figure(
     1. Process the image fragment and generate a description.
     2. Create a new fragment with the description.
     """
+    from az_ai.ingestion.tools.markdown import extract_code_block
+
+    MAX_TOKENS = 2000
+    TEMPERATURE = 0.0
+    SYSTEM_CONTEXT = """\
+        You are a helpful assistant that describe images in in vivid, precise details. 
+
+        Focus on the graphs, charts, tables, and any flat images, providing clear descriptions of the data they 
+        represent. 
+
+        Specify the type of graphs (e.g., bar, line, pie), their axes, colors used, and any notable trends or patterns. 
+        Mention the key figures, values, and labels.
+
+        For each chart, describe how data points change over time or across categories, pointing out any significant 
+        peaks, dips, or anomalies. If there are legends, footnotes, or annotations, detail how they contribute to 
+        understanding the data.
+
+        **Format your response as Markdown.**
+    """
+
+    response = azure_openai_client.chat.completions.create(
+        model="gpt-4.1-2025-04-14",
+        messages=[
+            {"role": "system", "content": SYSTEM_CONTEXT},
+            {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "text",
+                        "text": (
+                            "Describe this image.\n"
+                            f"**Note**: the image has the following caption:\n {image.metadata['caption']})"
+                        )
+                        if "caption" in image.metadata
+                        else "Describe this image.",
+                    },
+                    {"type": "image_url", "image_url": {"url": image.metadata["data_url"]}},
+                ],
+            },
+        ],
+        temperature=TEMPERATURE,
+        max_tokens=MAX_TOKENS,
+    )
+
     return Fragment.create_from(
         image,
+        content=extract_code_block(response.choices[0].message.content)[0],
         mime_type="text/markdown",
         label="figure_description",
+        update_metadata={
+            "azure_openai_response": response.to_dict(),
+        },
     )
 
 
@@ -124,18 +278,68 @@ def split_markdown(
     1. Split the Markdown in the "document_intelligence_result" fragment into multiple fragments.
     2. Create a new Markdown fragment for each split.
     """
-    return [Fragment.create_from(fragment, label="md_fragment") for i in range(4)]
+    from semantic_text_splitter import MarkdownSplitter
 
+    MAX_CHARACTERS = 2000
+
+    splitter = MarkdownSplitter(MAX_CHARACTERS, trim=False)
+
+    figure_pattern = re.compile(r"<figure>.*?</figure>", re.DOTALL)
+    page_break_pattern = re.compile(r"<!-- PageBreak -->")
+
+    fragments = []
+    page_nb  = 1
+    for i, chunk in enumerate(splitter.chunks(fragment.content.decode("utf-8"))):
+        content = " ".join(figure_pattern.split(chunk))
+        # TODO: this is a bit of a hack
+        if page_break_pattern.match(content):
+            page_nb += 1
+        fragments.append(
+            Fragment.create_from(
+                fragment,
+                label="md_fragment",
+                content=content,
+                mime_type="text/markdown",
+                human_index=i + 1,
+                metadata={
+                    "file_name": fragment.metadata["file_name"],
+                    "page_number": page_nb,
+                },
+            )
+        )
+    return fragments
 
 @ingestion.operation()
 def embed(
-    fragment: Annotated[Fragment, {"label": ["md", "figure_description"]}],
-) -> Annotated[Chunk, "chunk"]:
+    fragments: Annotated[list[Fragment], {"label": ["md_fragment", "figure_description"]}],
+) -> Annotated[list[Chunk], "chunk"]:
     """
     For each figures or MD fragment create an chunk fragment
     """
+    results = []
+    for index, fragment in enumerate(fragments):
+        response = azure_openai_client.embeddings.create(
+            model="text-embedding-3-large",
+            input=fragment.content.decode("utf-8"),
+        )
+        embedding = response.data[0].embedding
+        results.append(
+            Chunk.create_from(
+                fragment, 
+                label="chunk", 
+                human_index=index + 1, 
+                content=fragment.content, 
+                vector=embedding,
+                metadata={
+                    "file_name": fragment.metadata["file_name"],
+                    "page_number": fragment.metadata["page_number"],
+                    "data_url": fragment.metadata.get("data_url", None),
+                    "url": f"https://www.example.com/{fragment.metadata['file_name']}",
+                }
+            )
+        )
 
-    return Chunk.create_from(fragment, label="chunk", vector=[0.1, 0.2, 0.3])
+    return results
 
 
 # Write the ingestion pipeline diagram to a markdown file
@@ -149,9 +353,9 @@ with open("examples/its_a_rag.md", "w") as f:
 # ingestion.add_document_from_file("tests/data/test.pdf")
 
 ingestion.add_document_from_file("../itsarag/data/fsi/pdf/2023 FY GOOGL Short.pdf")
-#ingestion.add_document_from_file("../itsarag/data/fsi/pdf/2023 FY GOOGL.pdf")
+# ingestion.add_document_from_file("../itsarag/data/fsi/pdf/2023 FY GOOGL.pdf")
 
-ingestion()
+ingestion(search_client=search_client)
 
 
 # Other ideas:
