@@ -76,24 +76,41 @@ class Ingestion:
         """
         Generate a mermaid diagram of the ingestion pipeline.
         """
-        diagram = "flowchart TD\n"
-        fragment_specs = set()
+        boxes = set()
         for operation in self.operations().values():
-            fragment_specs.add(operation.output.spec())
-        for spec in fragment_specs:
-            fragment_label = spec.fragment_type
-            if spec.labels:
-                fragment_label += f"[{spec.labels[0]}]"
-            shape = "doc"
-            diagram += f"""    {spec}@{{ shape: {shape}, label: "{fragment_label}" }}\n"""
-
+            selector = operation.input.selector()
+            labels = [""] if not selector.labels else selector.labels
+            for label in labels:
+                boxes.add(
+                    f"    {selector.fragment_type}_{label}"
+                    f"""@{{ shape: doc, label: "{selector.fragment_type}[{label}]" }}"""
+                    )
+                
+            selector = operation.output.selector()
+            labels = [""] if not selector.labels else selector.labels
+            for label in labels:
+                boxes.add(
+                    f"    {selector.fragment_type}_{label}"
+                    f"""@{{ shape: doc, label: "{selector.fragment_type}[{label}]" }}"""
+                    )
+            boxes.add(f"""    {operation.name}@{{ shape: rect, label: "{operation.name}" }}""")
+        
+        diagram = ["flowchart TD"]
+        diagram += [box for box in boxes]
         for operation in self.operations().values():
-            diagram += f"""    {operation.name}@{{ shape: rect, label: "{operation.name}" }}\n"""
-            diagram += f"""    {operation.name} --> {operation.output.spec()}\n"""
-            spec = operation.input.selector()
-            diagram += f"""    {spec} --> {operation.name}\n"""
+            selector = operation.input.selector()
+            multiple = "- \\* -" if operation.input.multiple else ""
+            labels = [""] if not selector.labels else selector.labels
+            for label in labels:
+                diagram.append(f"""    {selector.fragment_type}_{label} -{multiple}-> {operation.name}""")
 
-        return diagram
+            selector = operation.output.selector()
+            labels = [""] if not selector.labels else selector.labels
+            multiple = "- \\* -" if operation.output.multiple else ""
+            for label in labels:
+                diagram.append(f"""    {operation.name} -{multiple}-> {selector.fragment_type}_{label}""")
+
+        return "\n".join(diagram)
 
     def add_document_from_file(self, file: str | Path, mime_type: str = None) -> Document:
         """

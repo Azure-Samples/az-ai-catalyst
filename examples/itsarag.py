@@ -156,7 +156,7 @@ search_client = SearchClient(
 
 
 ingestion = az_ai.ingestion.Ingestion(
-    repository=LocalRepository(path=Path("/tmp/its_a_rag_ingestion")),
+    repository=LocalRepository(path=Path("/tmp/itsarag_ingestion")),
 )
 
 
@@ -343,7 +343,7 @@ def embed(
 
 
 # Write the ingestion pipeline diagram to a markdown file
-with open("examples/its_a_rag.md", "w") as f:
+with open("examples/itsarag.md", "w") as f:
     f.write("```mermaid\n---\ntitle: It's a RAG Ingestion Pipeline\n---\n")
     f.write(ingestion.mermaid())
     f.write("\n```")
@@ -351,9 +351,8 @@ with open("examples/its_a_rag.md", "w") as f:
 # execute the ingestion pipeline
 
 # ingestion.add_document_from_file("tests/data/test.pdf")
-
 ingestion.add_document_from_file("../itsarag/data/fsi/pdf/2023 FY GOOGL Short.pdf")
-# ingestion.add_document_from_file("../itsarag/data/fsi/pdf/2023 FY GOOGL.pdf")
+#ingestion.add_document_from_file("../itsarag/data/fsi/pdf/2023 FY GOOGL.pdf")
 
 ingestion(search_client=search_client)
 

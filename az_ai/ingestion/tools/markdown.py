@@ -12,6 +12,8 @@ from PIL import Image
 
 from az_ai.ingestion import Fragment
 
+from az_ai.ingestion.tools.images import image_binary, image_data_url, image_base64 
+
 logger = logging.getLogger(__name__)
 
 def extract_code_block(markdown: str) -> str:
@@ -75,12 +77,12 @@ class MarkdownFigureExtractor:
             page_number - 1,  # Document Intelligence page numbers are 1-based
             bounding_box,
         )
-        image_data_url = self._image_data_url(image, "image/png")
+        data_url = image_data_url(image, "image/png")
         update_metadata = {
                 "page_number": page_number,
                 "figure_index": figure_index,
                 "figure_id": figure.id,
-                "data_url": image_data_url,
+                "data_url": data_url,
                 "document_intelligence_result": None,
             }
         if figure_caption:
@@ -90,7 +92,7 @@ class MarkdownFigureExtractor:
             fragment,
             label="figure",
             human_index=figure_index,
-            content=self._image_binary(image, "image/png"),
+            content=image_binary(image, "image/png"),
             mime_type="image/png",
             update_metadata=update_metadata,
         )
@@ -161,22 +163,3 @@ class MarkdownFigureExtractor:
             # The bounding box is expected to be in the format (left, upper, right, lower).
             cropped_image = img.crop(bounding_box)
             return cropped_image
-
-    def _image_binary(self, image: Image, mime_type):
-        buffer = BytesIO()
-
-        if mime_type == "image/jpeg":
-            format = "JPEG"
-        elif mime_type == "image/png":
-            format = "PNG"
-        else:
-            raise ValueError(f"Unsupported mime type: {mime_type}")
-        image.save(buffer, format=format)
-
-        return buffer.getvalue()
-
-    def _image_base64(self, image: Image, mime_type):
-        return base64.b64encode(self._image_binary(image, mime_type)).decode("utf-8")
-
-    def _image_data_url(self, image: Image, mime_type):
-        return f"data:{mime_type};base64,{self._image_base64(image, mime_type)}"

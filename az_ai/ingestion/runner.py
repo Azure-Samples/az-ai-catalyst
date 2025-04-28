@@ -104,7 +104,7 @@ class IngestionRunner:
         results = result if operation.output.multiple else [result]
 
         for result in results:
-            output_spec = operation.output.spec()
+            output_spec = operation.output.selector()
             if not output_spec.matches(result):
                 self._console.log(
                     f"Result {result} does not match output spec {escape(str(output_spec))}"

@@ -285,7 +285,7 @@ class OperationOutputSpec(BaseModel):
     multiple: bool = Field(..., description="Whether the output parameter is multiple.")
     label: str = Field(..., description="Label for the output parameter.")
 
-    def spec(self) -> FragmentSelector:
+    def selector(self) -> FragmentSelector:
         """
         Convert the OperationOutputSpec to a FragmentSelector.
         """
