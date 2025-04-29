@@ -63,11 +63,11 @@ class IngestionRunner:
             > 0
         ):
             self._console.log(
-                f"  Skip {escape(str(fragments))}..."
+                f"  Skip {escape(str([str(f) for f in fragments]))}..."
             )
             return
         self._console.log(
-            f"  Apply on {escape(str(fragments))}..."
+            f"  Apply on {escape(str([str(f) for f in fragments]))}..."
         )
 
         self._process_operation_result(operation, fragments, results)

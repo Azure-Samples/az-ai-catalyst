@@ -41,9 +41,9 @@ from az_ai.ingestion.repository import LocalRepository
 
 dotenv.load_dotenv()
 
-logging.basicConfig(level=logging.INFO)
-logging.getLogger("azure.core").setLevel(logging.WARNING)
-logging.getLogger("azure.identity").setLevel(logging.WARNING)
+#logging.basicConfig(level=logging.INFO)
+#logging.getLogger("azure.core").setLevel(logging.WARNING)
+#logging.getLogger("azure.identity").setLevel(logging.WARNING)
 
 #
 # Initialize Azure AI Foundry Services we will need
@@ -152,7 +152,6 @@ search_client = SearchClient(
     credential=credential,
     index_name=index.name,
 )
-
 
 
 ingestion = az_ai.ingestion.Ingestion(
