@@ -231,7 +231,7 @@ def describe_figure(
         peaks, dips, or anomalies. If there are legends, footnotes, or annotations, detail how they contribute to 
         understanding the data.
 
-        **Format your response as Markdown.**
+        **IMPORTANT: Format your response as Markdown.**
     """
 
     response = azure_openai_client.chat.completions.create(
