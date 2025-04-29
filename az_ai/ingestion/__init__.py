@@ -1,6 +1,6 @@
 from .ingestion import Ingestion
 from .runner import OperationError
-from .schema import Document, Fragment, FragmentSelector, Chunk
+from .schema import Chunk, Document, Fragment, FragmentSelector
 
 __all__ = [
     "Fragment",

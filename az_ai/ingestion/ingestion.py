@@ -1,16 +1,15 @@
 import inspect
 import logging
 import mimetypes
+from collections.abc import Callable
 from pathlib import Path
 from typing import (
     Annotated,
     Any,
-    Callable,
     get_args,
     get_origin,
     get_type_hints,
 )
-
 
 from az_ai.ingestion.repository import Repository
 from az_ai.ingestion.runner import IngestionRunner, OperationError

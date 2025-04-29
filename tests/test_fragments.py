@@ -1,6 +1,6 @@
 import pytest
 
-from az_ai.ingestion import Fragment, Document
+from az_ai.ingestion import Document, Fragment
 
 
 @pytest.fixture

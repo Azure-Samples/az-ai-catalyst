@@ -4,7 +4,6 @@ import pytest
 
 import az_ai.ingestion
 from az_ai.ingestion import Document, Fragment
-from az_ai.ingestion.ingestion import OperationError
 
 
 @pytest.fixture

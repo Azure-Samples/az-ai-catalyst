@@ -1,6 +1,6 @@
-import pytest
 
-from az_ai.ingestion.schema import FragmentSelector, Fragment, Document
+from az_ai.ingestion.schema import Document, Fragment, FragmentSelector
+
 
 def test_fragment_selector():
     selector = FragmentSelector(fragment_type="Fragment", labels=["label1", "label2"])

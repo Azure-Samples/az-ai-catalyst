@@ -1,7 +1,8 @@
-from PIL.Image import Image
+import base64
 from io import BytesIO
 
-import base64
+from PIL.Image import Image
+
 
 def image_binary(image: Image, mime_type: str) -> bytes:
     buffer = BytesIO()

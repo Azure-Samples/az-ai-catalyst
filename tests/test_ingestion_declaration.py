@@ -1,6 +1,6 @@
-import pytest
-
 from typing import Annotated
+
+import pytest
 
 import az_ai.ingestion
 from az_ai.ingestion import Document, Fragment

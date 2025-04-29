@@ -1,11 +1,8 @@
 import json
 import mimetypes
-from pathlib import Path
+from collections.abc import Callable
 from typing import (
     Any,
-    Callable,
-    Dict,
-    List,
     TypeVar,
 )
 from uuid import uuid4
@@ -34,7 +31,7 @@ class Fragment(BaseModel):
         description="Unique identifier for the fragment.",
     )
     label: str = Field(..., description="Label for the fragment.")
-    parent_names: List[str] = Field(
+    parent_names: list[str] = Field(
         default_factory=list,
         description="List of human-readable parent names for the fragment.",
     )
@@ -42,7 +39,7 @@ class Fragment(BaseModel):
         default=None,
         description="Index of the fragment when multiple fragments with the same label and parent_names are generated.",
     )
-    metadata: Dict[str, Any] = Field(
+    metadata: dict[str, Any] = Field(
         ..., default_factory=dict, description="Metadata associated with the fragment."
     )
     content_ref: str | None = Field(
@@ -126,7 +123,7 @@ class Fragment(BaseModel):
         return data
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any], **kwargs: Any) -> "Fragment":
+    def from_dict(cls, data: dict[str, Any], **kwargs: Any) -> "Fragment":
         data = dict(data)
 
         assert isinstance(data, dict)
@@ -183,7 +180,7 @@ class Document(Fragment):
         return "Document"
 
 class Chunk(Fragment):
-    vector: List[float] = Field(
+    vector: list[float] = Field(
         default=None, description="Chunk of the fragment."
     )
 
@@ -243,7 +240,7 @@ class OperationInputSpec(BaseModel):
         ..., description="Type of the input parameter."
     )
     multiple: bool = Field(..., description="Whether the input parameter accepts multiple inputs.")
-    filter: Dict[str, Any] = Field(..., description="Filter for the input parameter.")
+    filter: dict[str, Any] = Field(..., description="Filter for the input parameter.")
 
     def selector(self) -> FragmentSelector:
         """

@@ -1,12 +1,11 @@
 from rich.console import Group
+from rich.json import JSON
+from rich.markdown import Markdown
 from rich.markup import escape
-
 from rich.panel import Panel
 from rich.rule import Rule
-from rich.table import Table, box, Column
+from rich.table import Column, Table, box
 from rich.text import Text
-from rich.markdown import Markdown
-from rich.json import JSON
 
 from az_ai.ingestion.schema import Fragment
 

@@ -1,20 +1,15 @@
-import time
-from pathlib import Path
 
 from rich.console import Console
 from rich.markup import escape
 
 from az_ai.ingestion.repository import Repository
 from az_ai.ingestion.schema import (
-    Document,
     Fragment,
-    FragmentSelector,
-    OperationInputSpec,
-    OperationOutputSpec,
     OperationsLogEntry,
     OperationSpec,
 )
 from az_ai.ingestion.tools.rich import fragment_as_table
+
 
 class OperationError(Exception):
     pass

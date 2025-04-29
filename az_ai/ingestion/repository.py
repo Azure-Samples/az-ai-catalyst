@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 from pathlib import Path
 from urllib import request
+
 from az_ai.ingestion.schema import (
     Fragment,
     FragmentSelector,
@@ -85,7 +86,7 @@ class LocalRepository(Repository):
         if not fragment_path.exists():
             raise FragmentNotFoundError(f"Fragment {reference} not found.")
 
-        with open(fragment_path, "r") as f:
+        with open(fragment_path) as f:
             fragment = Fragment.from_json(f.read())
             if fragment.content_ref:
                 fragment.content = self._get_content_from_ref(fragment)
