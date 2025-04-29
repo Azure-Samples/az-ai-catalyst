@@ -1,7 +1,5 @@
-import re
-import base64
 import logging
-from io import BytesIO
+import re
 
 import pymupdf
 from azure.ai.documentintelligence.models import (
@@ -11,28 +9,31 @@ from azure.ai.documentintelligence.models import (
 from PIL import Image
 
 from az_ai.ingestion import Fragment
-
-from az_ai.ingestion.tools.images import image_binary, image_data_url, image_base64 
+from az_ai.ingestion.tools.images import image_binary, image_data_url
 
 logger = logging.getLogger(__name__)
+
 
 def extract_code_block(markdown: str) -> str:
     compiled_pattern = re.compile(r"```(?:\w+\s+)?(.*?)```", re.DOTALL)
     matches = compiled_pattern.findall(markdown)
-    return [code.strip() for code in matches]    
+    return [code.strip() for code in matches]
+
 
 class MarkdownFigureExtractor:
     def extract(self, fragment: Fragment) -> list[Fragment]:
         logger.info("Extracting figures from fragment: %s", fragment)
 
         self.document_intelligence_result = AnalyzeResult(fragment.metadata["document_intelligence_result"])
-        self.content : str = fragment.content.decode("utf-8")
+        self.content: str = fragment.content.decode("utf-8")
+
+        if not self.document_intelligence_result.figures:
+            logger.info("No figures found in the document.")
+            return []
 
         results = [
             self._extract_figure_from_page(fragment, figure_index, figure)
-            for figure_index, figure in enumerate(
-                self.document_intelligence_result.figures
-            )
+            for figure_index, figure in enumerate(self.document_intelligence_result.figures)
         ]
         return results
 
@@ -48,7 +49,7 @@ class MarkdownFigureExtractor:
         This method performs the following steps:
         1. Retrieves the bounding box, content text, caption, and page number for the given figure.
         2. Crops the corresponding page image to produce the figure image.
-        3. Generates a data URL 
+        3. Generates a data URL
         4. Return an image Fragment containing the image data URL related metadata.
 
         Args:
@@ -59,12 +60,8 @@ class MarkdownFigureExtractor:
         Returns:
             Fragment: A Fragment object containing the extracted figure image and metadata.
         """
-        logger.debug(
-            "Extracting figure index %d and id '%s'...", figure_index, figure.id
-        )
-        bounding_box, figure_content, figure_caption, page_number = (
-            self._extract_bounding_box(fragment, figure)
-        )
+        logger.debug("Extracting figure index %d and id '%s'...", figure_index, figure.id)
+        bounding_box, figure_content, figure_caption, page_number = self._extract_bounding_box(fragment, figure)
         logger.debug(
             "Figure extraction from page %s, content: %s, caption: %s, ",
             page_number,
@@ -79,12 +76,12 @@ class MarkdownFigureExtractor:
         )
         data_url = image_data_url(image, "image/png")
         update_metadata = {
-                "page_number": page_number,
-                "figure_index": figure_index,
-                "figure_id": figure.id,
-                "data_url": data_url,
-                "document_intelligence_result": None,
-            }
+            "page_number": page_number,
+            "figure_index": figure_index,
+            "figure_id": figure.id,
+            "data_url": data_url,
+            "document_intelligence_result": None,
+        }
         if figure_caption:
             update_metadata["caption"] = figure_caption
 
@@ -97,9 +94,7 @@ class MarkdownFigureExtractor:
             update_metadata=update_metadata,
         )
 
-    def _extract_bounding_box(
-        self, fragment: Fragment, figure: DocumentFigure
-    ):
+    def _extract_bounding_box(self, fragment: Fragment, figure: DocumentFigure):
         figure_caption = None
         figure_content = ""
         for i, span in enumerate(figure.spans):
@@ -127,19 +122,13 @@ class MarkdownFigureExtractor:
                 )
         return boundingbox, figure_content, figure_caption, region.page_number
 
-    def _crop_image_from_page_image(
-        self, fragment: Fragment, page_number, bounding_box
-    ) -> Image:
+    def _crop_image_from_page_image(self, fragment: Fragment, page_number, bounding_box) -> Image:
         mime_type = fragment.metadata.get("file_type")
         if not mime_type:
-            raise ValueError(
-                "Unable to get mime type from Document metadata['file_type']"
-            )
+            raise ValueError("Unable to get mime type from Document metadata['file_type']")
 
         if mime_type == "application/pdf":
-            return self._crop_image_from_pdf_page(
-                fragment.metadata["file_path"], page_number, bounding_box
-            )
+            return self._crop_image_from_pdf_page(fragment.metadata["file_path"], page_number, bounding_box)
         else:
             return self._crop_image_from_image(page_number, bounding_box)
 

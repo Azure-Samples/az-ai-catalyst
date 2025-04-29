@@ -349,8 +349,8 @@ with open("examples/itsarag.md", "w") as f:
 
 # execute the ingestion pipeline
 
-# ingestion.add_document_from_file("tests/data/test.pdf")
-ingestion.add_document_from_file("../itsarag/data/fsi/pdf/2023 FY GOOGL Short.pdf")
+ingestion.add_document_from_file("tests/data/human-nutrition-2020-short.pdf")
+#ingestion.add_document_from_file("../itsarag/data/fsi/pdf/2023 FY GOOGL Short.pdf")
 #ingestion.add_document_from_file("../itsarag/data/fsi/pdf/2023 FY GOOGL.pdf")
 
 ingestion(search_client=search_client)

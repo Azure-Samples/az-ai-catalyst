@@ -329,7 +329,8 @@ with open("examples/argus.md", "w") as f:
     f.write("\n```")
 
 
-ingestion.add_document_from_file("../itsarag/data/fsi/pdf/2023 FY GOOGL Short.pdf")
+ingestion.add_document_from_file("tests/data/test.pdf")
+#ingestion.add_document_from_file("../itsarag/data/fsi/pdf/2023 FY GOOGL Short.pdf")
 
 ingestion()
 
