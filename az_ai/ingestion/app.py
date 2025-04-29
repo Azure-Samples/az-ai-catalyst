@@ -21,7 +21,7 @@ def show(
     repository = LocalRepository(path=repository)
     if type or label:
         fragment_type = "Fragment" if type is None else type
-        spec = FragmentSelector(fragment_type=fragment_type, label=label)
+        spec = FragmentSelector(fragment_type=fragment_type, labels=[label])
         result = repository.find(spec)
     else: 
         result = repository.find()
