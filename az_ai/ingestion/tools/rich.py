@@ -6,7 +6,7 @@ from rich.rule import Rule
 from rich.table import Table, box, Column
 from rich.text import Text
 from rich.markdown import Markdown
-
+from rich.json import JSON
 
 from az_ai.ingestion.schema import Fragment
 
@@ -63,6 +63,8 @@ def fragment_as_table(fragment: Fragment) -> Panel:
                 content = Markdown("\n".join(content))
             case "text/plain":
                 content = Text(escape(fragment.content.decode("utf-8")), overflow="ellipsis")
+            case "application/json":
+                content = JSON(fragment.content.decode("utf-8"))
             case mime if mime.startswith("image/"):
                 content= Text(f"{mime} image placeholder...", style="italic")
             case _:
