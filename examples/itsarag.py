@@ -362,8 +362,8 @@ with open("examples/itsarag.md", "w") as f:
 
 # execute the ingestion pipeline
 
+mlflow.set_experiment("itsarag")
 with mlflow.start_run():
-    mlflow.set_experiment("itsarag")
     #with mlflow.start_span("ingestion"):
     ingestion.add_document_from_file("tests/data/human-nutrition-2020-short.pdf")
     #ingestion.add_document_from_file("../itsarag/data/fsi/pdf/2023 FY GOOGL Short.pdf")

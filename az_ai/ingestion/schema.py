@@ -264,7 +264,7 @@ class OperationInputSpec(BaseModel):
             raise ValueError("Filter must be a dictionary.")
 
     def __str__(self):
-        result = f"{self.fragment_type}{{"
+        result = f"{self.fragment_type}{"*" if self.multiple else ""}{{"
         if self.filter:
             result += f"{self.filter}"
         return result + "}"
@@ -292,10 +292,10 @@ class OperationOutputSpec(BaseModel):
         )
     
     def __str__(self):
-        result = f"{self.fragment_type}{{"
+        result = f"{self.fragment_type}{"*" if self.multiple else ""}{{"
         if self.label:
             result += f"{self.label}"
-        return result + f"}}{"*" if self.multiple else ""}"
+        return result + "}"
 
 class OperationSpec(BaseModel):
     """

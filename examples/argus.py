@@ -2,6 +2,7 @@ import logging
 import os
 import mlflow
 
+from mlflow.entities import SpanType
 from pathlib import Path
 from typing import Annotated
 
@@ -335,6 +336,7 @@ with open("examples/argus.md", "w") as f:
     f.write(ingestion.mermaid())
     f.write("\n```")
 
+mlflow.set_experiment("argus")
 with mlflow.start_run():
     ingestion.add_document_from_file("tests/data/test.pdf")
     #ingestion.add_document_from_file("../itsarag/data/fsi/pdf/2023 FY GOOGL Short.pdf")

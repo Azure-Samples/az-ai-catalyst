@@ -1,6 +1,7 @@
 import inspect
 import logging
 import mimetypes
+from collections import OrderedDict
 from collections.abc import Callable
 from pathlib import Path
 from typing import (
@@ -75,27 +76,27 @@ class Ingestion:
         """
         Generate a mermaid diagram of the ingestion pipeline.
         """
-        boxes = set()
+        boxes = OrderedDict()
         for operation in self.operations().values():
             selector = operation.input.selector()
             labels = [""] if not selector.labels else selector.labels
             for label in labels:
-                boxes.add(
+                boxes[
                     f"    {selector.fragment_type}_{label}"
                     f"""@{{ shape: doc, label: "{selector.fragment_type}[{label}]" }}"""
-                    )
+                ] = selector
                 
             selector = operation.output.selector()
             labels = [""] if not selector.labels else selector.labels
             for label in labels:
-                boxes.add(
+                boxes[
                     f"    {selector.fragment_type}_{label}"
                     f"""@{{ shape: doc, label: "{selector.fragment_type}[{label}]" }}"""
-                    )
-            boxes.add(f"""    {operation.name}@{{ shape: rect, label: "{operation.name}" }}""")
+                ] = selector
+            boxes[f"""    {operation.name}@{{ shape: rect, label: "{operation.name}" }}"""] = operation
         
         diagram = ["flowchart TD"]
-        diagram += [box for box in boxes]
+        diagram += [box for box in boxes.keys()]
         for operation in self.operations().values():
             selector = operation.input.selector()
             multiple = "- \\* -" if operation.input.multiple else ""
