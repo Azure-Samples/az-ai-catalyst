@@ -47,7 +47,6 @@ class IngestionRunner:
                 self._run_operation_on_fragment(operation, fragment)
 
     def _run_operation_on_multiple_fragments(self, operation: OperationSpec, fragments: list[Fragment]):
-        results = operation.func(fragments)
         if (
             len(
                 self.repository.find_operations_log_entry(
@@ -64,7 +63,7 @@ class IngestionRunner:
         self._console.log(
             f"  Apply on {escape(str([str(f) for f in fragments]))}..."
         )
-
+        results = operation.func(fragments)
         self._process_operation_result(operation, fragments, results)
 
     def _run_operation_on_fragment(self, operation: OperationSpec, fragment: Fragment):
