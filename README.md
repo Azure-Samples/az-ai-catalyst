@@ -40,3 +40,10 @@ uv run az-ai-ingestion show --repository /tmp/argus_ingestion/
 uv run pytest
 ```
 
+### Visualize the traces (experimental)
+
+```bash
+uv run mlflow ui --port 5000
+```
+
+Then open your browser and go to [http://localhost:5000](http://localhost:5000).
