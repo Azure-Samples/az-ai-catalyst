@@ -1,7 +1,11 @@
 #!/usr/bin/env python3
 import logging
+import mlflow
 import os
 import re
+
+
+from mlflow.entities import SpanType
 from pathlib import Path
 from typing import Annotated
 
@@ -44,6 +48,10 @@ dotenv.load_dotenv()
 #logging.basicConfig(level=logging.INFO)
 #logging.getLogger("azure.core").setLevel(logging.WARNING)
 #logging.getLogger("azure.identity").setLevel(logging.WARNING)
+
+mlflow.openai.autolog()
+#mlflow.config.enable_async_logging()
+#mlflow.config.enable_system_metrics_logging()
 
 #
 # Initialize Azure AI Foundry Services we will need
@@ -160,6 +168,7 @@ ingestion = az_ai.ingestion.Ingestion(
 
 
 @ingestion.operation()
+@mlflow.trace(span_type=SpanType.CHAIN)
 def apply_document_intelligence(
     document: Document,
 ) -> Annotated[Fragment, "document_intelligence_result"]:
@@ -192,6 +201,7 @@ def apply_document_intelligence(
 
 
 @ingestion.operation()
+@mlflow.trace(span_type=SpanType.CHAIN)
 def extract_figures(
     fragment: Annotated[Fragment, {"label": "document_intelligence_result"}],
 ) -> Annotated[list[Fragment], "figure"]:
@@ -207,6 +217,7 @@ def extract_figures(
 
 
 @ingestion.operation()
+@mlflow.trace(span_type=SpanType.CHAIN)
 def describe_figure(
     image: Annotated[Fragment, {"label": "figure"}],
 ) -> Annotated[Fragment, "figure_description"]:
@@ -270,6 +281,7 @@ def describe_figure(
 
 
 @ingestion.operation()
+@mlflow.trace(span_type=SpanType.CHAIN)
 def split_markdown(
     fragment: Annotated[Fragment, {"label": "document_intelligence_result"}],
 ) -> Annotated[list[Fragment], "md_fragment"]:
@@ -309,6 +321,7 @@ def split_markdown(
     return fragments
 
 @ingestion.operation()
+@mlflow.trace(span_type=SpanType.CHAIN)
 def embed(
     fragments: Annotated[list[Fragment], {"label": ["md_fragment", "figure_description"]}],
 ) -> Annotated[list[Chunk], "chunk"]:
@@ -349,11 +362,14 @@ with open("examples/itsarag.md", "w") as f:
 
 # execute the ingestion pipeline
 
-ingestion.add_document_from_file("tests/data/human-nutrition-2020-short.pdf")
-#ingestion.add_document_from_file("../itsarag/data/fsi/pdf/2023 FY GOOGL Short.pdf")
-#ingestion.add_document_from_file("../itsarag/data/fsi/pdf/2023 FY GOOGL.pdf")
+with mlflow.start_run():
+    mlflow.set_experiment("itsarag")
+    #with mlflow.start_span("ingestion"):
+    ingestion.add_document_from_file("tests/data/human-nutrition-2020-short.pdf")
+    #ingestion.add_document_from_file("../itsarag/data/fsi/pdf/2023 FY GOOGL Short.pdf")
+    #ingestion.add_document_from_file("../itsarag/data/fsi/pdf/2023 FY GOOGL.pdf")
 
-ingestion(search_client=search_client)
+    ingestion(search_client=search_client)
 
 
 # Other ideas:

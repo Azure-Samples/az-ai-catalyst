@@ -10,3 +10,6 @@ wheels/
 .venv
 
 .env
+
+# Ingore MLFlow local tracking directory
+mlruns

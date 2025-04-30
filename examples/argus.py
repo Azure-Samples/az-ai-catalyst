@@ -1,5 +1,7 @@
 import logging
 import os
+import mlflow
+
 from pathlib import Path
 from typing import Annotated
 
@@ -134,6 +136,7 @@ EVALUATION_SYSTEM_PROMPT = """
 
 
 @ingestion.operation()
+@mlflow.trace(span_type=SpanType.CHAIN)
 def apply_document_intelligence(
     document: Document,
 ) -> Annotated[Fragment, "document_intelligence_result"]:
@@ -164,6 +167,7 @@ def apply_document_intelligence(
 
 
 @ingestion.operation()
+@mlflow.trace(span_type=SpanType.CHAIN)
 def split_to_page_images(
     document: Document,
 ) -> Annotated[list[Fragment], "page_image"]:
@@ -202,6 +206,7 @@ def split_to_page_images(
 
 
 @ingestion.operation()
+@mlflow.trace(span_type=SpanType.CHAIN)
 def apply_llm_to_pages(
     fragments: Annotated[list[Fragment], {"label": ["document_intelligence_result", "page_image"]}],
 ) -> Annotated[Fragment, "llm_result"]:
@@ -249,6 +254,7 @@ def apply_llm_to_pages(
 
 
 @ingestion.operation()
+@mlflow.trace(span_type=SpanType.CHAIN)
 def extract_summary(
     di_result: Annotated[Fragment, {"label": "document_intelligence_result"}],
 ) -> Annotated[Fragment, "summary"]:
@@ -280,6 +286,7 @@ def extract_summary(
 
 
 @ingestion.operation()
+@mlflow.trace(span_type=SpanType.CHAIN)
 def evaluate_with_llm(
     fragments: Annotated[list[Fragment], {"label": ["llm_result", "page_image"]}],
 ) -> Annotated[Fragment, "evaluated_result"]:
@@ -328,11 +335,11 @@ with open("examples/argus.md", "w") as f:
     f.write(ingestion.mermaid())
     f.write("\n```")
 
+with mlflow.start_run():
+    ingestion.add_document_from_file("tests/data/test.pdf")
+    #ingestion.add_document_from_file("../itsarag/data/fsi/pdf/2023 FY GOOGL Short.pdf")
 
-ingestion.add_document_from_file("tests/data/test.pdf")
-#ingestion.add_document_from_file("../itsarag/data/fsi/pdf/2023 FY GOOGL Short.pdf")
-
-ingestion()
+    ingestion()
 
 
 #

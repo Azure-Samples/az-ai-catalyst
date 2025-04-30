@@ -85,6 +85,9 @@ class MarkdownFigureExtractor:
         if figure_caption:
             update_metadata["caption"] = figure_caption
 
+        import mlflow
+        mlflow.log_image(image, key=f"figure_{figure_index}.png")
+
         return Fragment.create_from(
             fragment,
             label="figure",
