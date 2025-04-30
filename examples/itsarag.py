@@ -1,15 +1,11 @@
 #!/usr/bin/env python3
-import logging
-import mlflow
 import os
 import re
-
-
-from mlflow.entities import SpanType
 from pathlib import Path
 from typing import Annotated
 
 import dotenv
+import mlflow
 from azure.ai.documentintelligence import DocumentIntelligenceClient
 from azure.ai.documentintelligence.models import (
     AnalyzeDocumentRequest,
@@ -21,23 +17,17 @@ from azure.identity import DefaultAzureCredential
 from azure.search.documents import SearchClient
 from azure.search.documents.indexes import SearchIndexClient
 from azure.search.documents.indexes.models import (
-    AzureOpenAIVectorizer,
-    AzureOpenAIVectorizerParameters,
     HnswAlgorithmConfiguration,
     HnswParameters,
     SearchableField,
     SearchField,
     SearchFieldDataType,
     SearchIndex,
-    SemanticConfiguration,
-    SemanticField,
-    SemanticPrioritizedFields,
-    SemanticSearch,
     SimpleField,
     VectorSearch,
     VectorSearchProfile,
-    VectorSearchVectorizer,
 )
+from mlflow.entities import SpanType
 
 import az_ai.ingestion
 from az_ai.ingestion import Chunk, Document, Fragment

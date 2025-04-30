@@ -41,6 +41,13 @@ class Repository(ABC):
         pass
 
 
+    @abstractmethod
+    def human_content_path(self, fragment: Fragment) -> Path:
+        """
+        Get the human-readable path for the given fragment content.
+        """
+        pass
+
 class FragmentNotFoundError(Exception):
     """Exception raised when a fragment is not found in the repository."""
 
@@ -135,6 +142,12 @@ class LocalRepository(Repository):
                 fragments.append(self.get(fragment.id))
 
         return fragments
+    
+    def get_human_path(self, fragment: Fragment) -> Path:
+        """
+        Get the human-readable path for the given fragment.
+        """
+        return self._human_path / fragment.human_file_name()
 
     def add_operations_log_entry(self, operations_log_entry: OperationsLogEntry) -> None:
         """
@@ -186,11 +199,17 @@ class LocalRepository(Repository):
         content_path.write_bytes(fragment.content)
         self._create_human_content_link(fragment, content_path)
 
+    def human_content_path(self, fragment: Fragment) -> Path:
+        """
+        Get the human-readable path for the given fragment content.
+        """
+        return self._human_path / fragment.human_file_name()
+
     def _create_human_content_link(self, fragment: Fragment, content_path: Path):
         """
         Create a human-readable link for the given fragment content.
         """
-        human_path = self._human_path / fragment.human_file_name()
+        human_path = self.human_content_path(fragment)
         if human_path.exists():
             raise DuplicateFragmentError(f"Fragment {fragment.id} human content name already exists.")
         if not human_path.parent.exists():

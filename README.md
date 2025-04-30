@@ -2,6 +2,12 @@
 
 ## Quick Start
 
+### Configure the environment
+
+Copy the `env.example` file to `.env` and set the environment variables.
+
+Alternatively you can provide the environment variables directly in the command line or through your shell.
+
 ### Run the examples
 
 #### It's a RAG example

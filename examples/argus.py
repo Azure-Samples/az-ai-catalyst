@@ -1,32 +1,40 @@
-import logging
-import os
-import mlflow
-
-from mlflow.entities import SpanType
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Any
 
-import dotenv
+import mlflow
 from azure.ai.documentintelligence import DocumentIntelligenceClient
 from azure.ai.documentintelligence.models import (
     AnalyzeDocumentRequest,
-    AnalyzeResult,
     DocumentAnalysisFeature,
     DocumentContentFormat,
 )
 from azure.ai.projects import AIProjectClient
 from azure.identity import DefaultAzureCredential
 from azure.search.documents.indexes import SearchIndexClient
+from mlflow.entities import SpanType
 
 import az_ai.ingestion
-from az_ai.ingestion import Document, Fragment
+from az_ai.ingestion import Document, Fragment, IngestionSettings
 from az_ai.ingestion.repository import LocalRepository
-
-dotenv.load_dotenv()
+from az_ai.ingestion.schema import FragmentSelector
 
 # logging.basicConfig(level=logging.INFO)
 # logging.getLogger("azure.core").setLevel(logging.WARNING)
 # logging.getLogger("azure.identity").setLevel(logging.WARNING)
+
+
+class ArgusSettings(IngestionSettings):
+    model_name: str = "gpt-4.1-2025-04-14"
+    temperature: float = 0.0
+    repository_path: Path = Path("/tmp/argus_ingestion")
+
+    def as_params(self) -> dict[str, Any]:
+        return {
+            "model_name": self.model_name,
+            "temperature": self.temperature,
+        }
+
+settings = ArgusSettings()
 
 #
 # Initialize Azure AI Foundry Services we will need
@@ -34,21 +42,21 @@ dotenv.load_dotenv()
 
 credential = DefaultAzureCredential()
 project = AIProjectClient.from_connection_string(
-    conn_str=os.getenv("AZURE_AI_PROJECT_CONNECTION_STRING"), credential=credential
+    conn_str=settings.azure_ai_project_connection_string, credential=credential
 )
 
 document_intelligence_client = DocumentIntelligenceClient(
-    endpoint=os.getenv("AZURE_OPENAI_ENDPOINT"),
+    endpoint=settings.azure_openai_endpoint,
     api_version="2024-11-30",
     credential=credential,
 )
 
 azure_openai_client = project.inference.get_azure_openai_client(
-    api_version=os.getenv("AZURE_OPENAI_API_VERSION"),
+    api_version=settings.azure_openai_api_version,
 )
 
 search_index_client = SearchIndexClient(
-    endpoint=os.getenv("AZURE_AI_SEARCH_ENDPOINT"),
+    endpoint=settings.azure_ai_search_endpoint,
     credential=credential,
 )
 
@@ -57,7 +65,7 @@ search_index_client = SearchIndexClient(
 #
 
 ingestion = az_ai.ingestion.Ingestion(
-    repository=LocalRepository(path=Path("/tmp/argus_ingestion")),
+    repository=LocalRepository(path=settings.repository_path),
 )
 
 JSON_SCHEMA = "{}"
@@ -239,9 +247,9 @@ def apply_llm_to_pages(
     ]
 
     response = azure_openai_client.chat.completions.create(
-        model="gpt-4.1-2025-04-14",
+        model=settings.model_name,
         messages=messages,
-        temperature=0.0,
+        temperature=settings.temperature,
     )
     return Fragment.create_from(
         doc_intel_fragment,
@@ -309,8 +317,8 @@ def evaluate_with_llm(
                     "type": "text",
                     "text": f"Here is the extracted data:\n```json\n{llm_result.content.decode('utf-8')}```\n",
                 },
-
-            ] + [
+            ]
+            + [
                 {"type": "image_url", "image_url": {"url": image_data_url(image.content, "image/png")}}
                 for image in fragments
                 if image.label == "page_image"
@@ -318,7 +326,7 @@ def evaluate_with_llm(
         },
     ]
 
-    response = azure_openai_client.chat.completions.create(model="gpt-4.1-2025-04-14", messages=messages, seed=0)
+    response = azure_openai_client.chat.completions.create(model=settings.model_name, messages=messages, seed=0)
 
     return Fragment.create_from(
         llm_result,
@@ -338,12 +346,16 @@ with open("examples/argus.md", "w") as f:
 
 mlflow.set_experiment("argus")
 with mlflow.start_run():
+    mlflow.log_params(settings.as_params())
     ingestion.add_document_from_file("tests/data/test.pdf")
-    #ingestion.add_document_from_file("../itsarag/data/fsi/pdf/2023 FY GOOGL Short.pdf")
+    # ingestion.add_document_from_file("../itsarag/data/fsi/pdf/2023 FY GOOGL Short.pdf")
 
     ingestion()
 
-
+    for fragment in ingestion.repository.find(
+        FragmentSelector(fragment_type="Fragment", labels=["evaluated_result", "llm_result"])
+    ):
+        mlflow.log_artifact(ingestion.repository.human_content_path(fragment))
 #
 # Possible improvements:
 

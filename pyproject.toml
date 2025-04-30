@@ -19,6 +19,7 @@ dependencies = [
     "pedantic>=2.1.9",
     "pillow>=11.2.1",
     "pydantic>=2.11.3",
+    "pydantic-settings>=2.9.1",
     "pymupdf>=1.25.5",
     "pytest>=8.3.5",
     "python-dotenv>=1.1.0",
@@ -36,6 +37,9 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["az_ai"]
+
+[tool.az_ai.ingestion]
+#model_name = "gpt-4.1-mini-2025-04-14"
 
 [tool.pytest.ini_options]
 testpaths = [
