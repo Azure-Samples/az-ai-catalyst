@@ -138,7 +138,7 @@ class LocalRepository(Repository):
         for fragment_path in self._fragments_path.glob("*.json"):
             fragment = Fragment.from_json(fragment_path.read_text())
             if selector is None or selector.matches(fragment):
-                # use self.get to ensure content is loaded
+                # call self.get to ensure content is loaded
                 fragments.append(self.get(fragment.id))
 
         return fragments
@@ -158,17 +158,11 @@ class LocalRepository(Repository):
         self._write_log(log)
 
     def find_operations_log_entry(
-        self, operation_name: str = None, input_fragment_refs: list[str] | list[Fragment] = None
+        self, operation_name: str = None, input_fragment_refs: set[str] = None
     ):
         """
         Find an operation log entry by operation_name and/or input_fragment_ref
         """
-        if (
-            input_fragment_refs
-            and isinstance(input_fragment_refs, list)
-            and isinstance(input_fragment_refs[0], Fragment)
-        ):
-            input_fragment_refs = [fragment.id for fragment in input_fragment_refs]
         return [
             entry
             for entry in self._read_log().entries
@@ -183,7 +177,7 @@ class LocalRepository(Repository):
         ]
 
     def _read_log(self) -> OperationsLog:
-        return OperationsLog.parse_file(self._operations_log_path)
+        return OperationsLog.model_validate_json(self._operations_log_path.read_bytes())
 
     def _write_log(self, log: OperationsLog):
         self._operations_log_path.write_text(log.model_dump_json(indent=2))

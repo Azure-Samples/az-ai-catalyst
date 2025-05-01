@@ -315,7 +315,7 @@ class OperationInputSpec(BaseModel):
     fragment_type: str = Field(
         ..., description="Type of the input parameter."
     )
-    multiple: bool = Field(..., description="Whether the input parameter accepts multiple inputs.")
+    multiple: bool = Field(..., description="Whether the input parameter accepts multiple input_specs.")
     filter: dict[str, Any] = Field(..., description="Filter for the input parameter.")
 
     def selector(self) -> FragmentSelector:
@@ -380,16 +380,15 @@ class OperationSpec(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     name: str = Field(..., description="Name of the operation function.")
-    input: OperationInputSpec
-    output: OperationOutputSpec
+    input_specs: list[OperationInputSpec]
+    output_spec: OperationOutputSpec
     func: CommandFunctionType = Field(..., description="The operation function.")
 
     def __call__(self, *args, **kwargs):
         return self.func(*args, **kwargs)
 
-
     def __str__(self):
-        return f"{self.name}({self.input}) -> {self.output}"
+        return f"{self.name}({self.input_specs}) -> {self.output_spec}"
 #
 # Operations Log
 #
@@ -401,17 +400,8 @@ class OperationsLogEntry(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     operation_name: str = Field(..., description="The performed operation.")
-    input_refs: list[str] = Field(..., description="Reference to the input fragments.")
+    input_refs: set[str] = Field(..., description="Reference to the input fragments.")
     output_refs: list[str] = Field(..., description="Reference to the output fragments.")
-
-    @classmethod
-    def create_from(cls, operation: OperationSpec, input_fragments: list[Fragment], output_fragments: list[Fragment]):
-        return OperationsLogEntry(
-            operation_name=operation.name,
-            input_refs=[fragment.id for fragment in input_fragments],
-            output_refs=[fragment.id for fragment in output_fragments],
-        )
-    
 
 class OperationsLog(BaseModel):
     """

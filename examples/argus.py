@@ -64,14 +64,17 @@ ingestion = az_ai.ingestion.Ingestion(
     repository=LocalRepository(path=settings.repository_path),
 )
 
+
 class Summary(Fragment):
     pass
 
+
 class Extraction(Fragment):
-    pass 
+    pass
+
 
 class ExtractionEvaluation(Fragment):
-    pass 
+    pass
 
 
 JSON_SCHEMA = "{}"
@@ -215,7 +218,7 @@ def split_to_page_images(
 @ingestion.operation()
 @mlflow.trace(span_type=SpanType.CHAIN)
 def apply_llm_to_pages(
-    fragments: Annotated[list[Fragment], {"label": ["document_intelligence_result", "page_image"]}],
+    di_result: DocumentIntelligenceResult, page_images: list[ImageFragment]
 ) -> Annotated[Extraction, "llm_result"]:
     """
     1. Generate an image for each page
@@ -223,7 +226,6 @@ def apply_llm_to_pages(
     3. Extract the result into an llm_result fragment
     """
 
-    doc_intel_fragment = next(f for f in fragments if f.label == "document_intelligence_result")
     system_context = EXTRACTION_SYSTEM_PROMPT.format(
         prompt=EXTRACTION_PROMPT,
         json_schema=JSON_SCHEMA,
@@ -233,12 +235,11 @@ def apply_llm_to_pages(
         {
             "role": "user",
             "content": [
-                {"type": "text", "text": doc_intel_fragment.content_as_str()},
+                {"type": "text", "text": di_result.content_as_str()},
             ]
             + [
-                {"type": "image_url", "image_url": {"url": fragment.content_as_data_url()}}
-                for fragment in fragments
-                if fragment.label == "page_image"
+                {"type": "image_url", "image_url": {"url": page_image.content_as_data_url()}}
+                for page_image in page_images
             ],
         },
     ]
@@ -249,7 +250,7 @@ def apply_llm_to_pages(
         temperature=settings.temperature,
     )
     return Extraction.create_from(
-        doc_intel_fragment,
+        di_result,
         content=response.choices[0].message.content,
         mime_type="application/json",
         label="llm_result",
@@ -351,8 +352,6 @@ with mlflow.start_run():
         FragmentSelector(fragment_type="Fragment", labels=["evaluated_result", "llm_result"])
     ):
         mlflow.log_artifact(ingestion.repository.human_content_path(fragment))
-
-
 
 
 #

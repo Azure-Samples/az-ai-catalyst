@@ -78,15 +78,16 @@ class Ingestion:
         """
         boxes = OrderedDict()
         for operation in self.operations().values():
-            selector = operation.input.selector()
-            labels = [""] if not selector.labels else selector.labels
-            for label in labels:
-                boxes[
-                    f"    {selector.fragment_type}_{label}"
-                    f"""@{{ shape: doc, label: "{selector.fragment_type}[{label}]" }}"""
-                ] = selector
+            for input in operation.input_specs:
+                selector = input.selector()
+                labels = [""] if not selector.labels else selector.labels
+                for label in labels:
+                    boxes[
+                        f"    {selector.fragment_type}_{label}"
+                        f"""@{{ shape: doc, label: "{selector.fragment_type}[{label}]" }}"""
+                    ] = selector
                 
-            selector = operation.output.selector()
+            selector = operation.output_spec.selector()
             labels = [""] if not selector.labels else selector.labels
             for label in labels:
                 boxes[
@@ -96,17 +97,18 @@ class Ingestion:
             boxes[f"""    {operation.name}@{{ shape: rect, label: "{operation.name}" }}"""] = operation
         
         diagram = ["flowchart TD"]
-        diagram += [box for box in boxes.keys()]
+        diagram += [box for box in boxes]
         for operation in self.operations().values():
-            selector = operation.input.selector()
-            multiple = "- \\* -" if operation.input.multiple else ""
-            labels = [""] if not selector.labels else selector.labels
-            for label in labels:
-                diagram.append(f"""    {selector.fragment_type}_{label} -{multiple}-> {operation.name}""")
+            for input in operation.input_specs:
+                selector = input.selector()
+                multiple = "- \\* -" if input.multiple else ""
+                labels = [""] if not selector.labels else selector.labels
+                for label in labels:
+                    diagram.append(f"""    {selector.fragment_type}_{label} -{multiple}-> {operation.name}""")
 
-            selector = operation.output.selector()
+            selector = operation.output_spec.selector()
             labels = [""] if not selector.labels else selector.labels
-            multiple = "- \\* -" if operation.output.multiple else ""
+            multiple = "- \\* -" if operation.output_spec.multiple else ""
             for label in labels:
                 diagram.append(f"""    {operation.name} -{multiple}-> {selector.fragment_type}_{label}""")
 
@@ -155,14 +157,11 @@ class Ingestion:
         type_hints = get_type_hints(func)
         signature = inspect.signature(func)
 
-        input = self._parse_parameters(func, type_hints, signature)
-        output = self._parse_return_type(func, type_hints, signature)
-
         return OperationSpec(
             name=func.__name__,
             func=func,
-            input=input,
-            output=output,
+            input_specs=self._parse_parameters(func, type_hints, signature),
+            output_spec=self._parse_return_type(func, type_hints, signature),
         )
 
     def _parse_parameters(
@@ -170,49 +169,65 @@ class Ingestion:
         func: CommandFunctionType,
         type_hints: dict[str, Any],
         signature: inspect.Signature,
-    ):
-        if len(signature.parameters) != 1:
-            raise OperationError("Operation function must have exactly 1 parameter.")
-
+    ) -> list[OperationInputSpec]:
+        """
+        Parse the parameters of the function to extract their types and names
+        """
+        logger.debug("Parsing parameters for %s...", func.__name__)
+        input_specs = []
         for param in signature.parameters.values():
             param_name = param.name
             param_type = param.annotation
-            logger.debug("Parameter: %s, Type: %s", param_name, param_type)
+            if param_name == "self":
+                continue
 
-            filter = {}
+            input = self._parse_parameter(func, param_name, param_type)
+            input_specs.append(input)
 
-            if get_origin(param_type) is Annotated:
-                param_type, filter = get_args(param_type)
-                if not isinstance(filter, dict):
-                    raise OperationError(
-                        f"Operation function parameter {param_name} filter must be a dict not {filter}"
-                    )
+        if len(input_specs) == 0:
+            raise OperationError(f"Operation function {func.__name__} must have at least one 'input' parameter.")
+
+        return input_specs
+
+    def _parse_parameter(
+        self,
+        func: CommandFunctionType,
+        param_name: str,
+        param_type: Any,
+    ) -> OperationInputSpec:
+        logger.debug("Parameter: %s, Type: %s", param_name, param_type)
+
+        filter = {}
+
+        if get_origin(param_type) is Annotated:
+            param_type, filter = get_args(param_type)
+            if not isinstance(filter, dict):
+                raise OperationError(
+                    f"Operation function parameter {param_name} filter must be a dict not {filter}"
+                )
+
+        base_type = self._get_base_type(param_type)
+        multiple = False
+        if hasattr(base_type, "__origin__"):
+            if base_type.__origin__ is list:
+                multiple = True
+                base_type = get_args(base_type)[0]
             else:
-                param_type = param.annotation
+                raise OperationError(
+                    f"Operation function {func.__name__} must have a return type of list[Fragment] or Fragment not {base_type}"
+                )
+        else:
+            if not issubclass(base_type, Fragment):
+                raise OperationError(
+                    f"Operation function parameter {param_name} must be of type Fragment not {param_type}"
+                )
 
-            base_type = self._get_base_type(param_type)
-            multiple = False
-            if hasattr(base_type, "__origin__"):
-                if base_type.__origin__ is list:
-                    multiple = True
-                    base_type = get_args(base_type)[0]
-                else:
-                    raise OperationError(
-                        f"Operation function {func.__name__} must have a return type of list[Fragment] or Fragment not {base_type}"
-                    )
-            else:
-                if not issubclass(base_type, Fragment):
-                    raise OperationError(
-                        f"Operation function parameter {param_name} must be of type Fragment not {param_type}"
-                    )
-
-            input = OperationInputSpec(
-                name=param_name,
-                fragment_type=base_type.__name__,
-                multiple=multiple,
-                filter=filter,
-            )
-        return input
+        return OperationInputSpec(
+            name=param_name,
+            fragment_type=base_type.__name__,
+            multiple=multiple,
+            filter=filter,
+        )
 
     def _parse_return_type(
         self,
