@@ -2,9 +2,8 @@
 import os
 import re
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Any
 
-import dotenv
 import mlflow
 from azure.ai.documentintelligence import DocumentIntelligenceClient
 from azure.ai.documentintelligence.models import (
@@ -32,16 +31,31 @@ from mlflow.entities import SpanType
 import az_ai.ingestion
 from az_ai.ingestion import Chunk, Document, DocumentIntelligenceResult, Fragment, ImageFragment
 from az_ai.ingestion.repository import LocalRepository
+from az_ai.ingestion.settings import IngestionSettings
 
-dotenv.load_dotenv()
 
 # logging.basicConfig(level=logging.INFO)
 # logging.getLogger("azure.core").setLevel(logging.WARNING)
 # logging.getLogger("azure.identity").setLevel(logging.WARNING)
 
 mlflow.openai.autolog()
-# mlflow.config.enable_async_logging()
-# mlflow.config.enable_system_metrics_logging()
+
+class ItsaragSettings(IngestionSettings):
+    model_name: str = "gpt-4.1-2025-04-14"
+    index_name: str = "itsarag"
+    temperature: float = 0.0
+    max_tokens: int = 2000
+    repository_path: Path = Path("/tmp/itsarag_ingestion")
+
+    def as_params(self) -> dict[str, Any]:
+        return {
+            "model_name": self.model_name,
+            "temperature": self.temperature,
+            "max_tokens": self.max_tokens,
+        }
+    
+
+settings = ItsaragSettings()
 
 #
 # Initialize Azure AI Foundry Services we will need
@@ -49,21 +63,21 @@ mlflow.openai.autolog()
 
 credential = DefaultAzureCredential()
 project = AIProjectClient.from_connection_string(
-    conn_str=os.getenv("AZURE_AI_PROJECT_CONNECTION_STRING"), credential=credential
+    conn_str=settings.azure_ai_project_connection_string, credential=credential
 )
 
 document_intelligence_client = DocumentIntelligenceClient(
-    endpoint=os.getenv("AZURE_OPENAI_ENDPOINT"),
+    endpoint=settings.azure_openai_endpoint,
     api_version="2024-11-30",
     credential=credential,
 )
 
 azure_openai_client = project.inference.get_azure_openai_client(
-    api_version=os.getenv("AZURE_OPENAI_API_VERSION"),
+    api_version=settings.azure_openai_api_version,
 )
 
 search_index_client = SearchIndexClient(
-    endpoint=os.getenv("AZURE_AI_SEARCH_ENDPOINT"),
+    endpoint=settings.azure_ai_search_endpoint,
     credential=credential,
 )
 
@@ -124,7 +138,7 @@ fields = [
     ),
 ]
 index = SearchIndex(
-    name="itsarag",
+    name=settings.index_name,
     fields=fields,
     vector_search=VectorSearch(
         algorithms=[
@@ -146,7 +160,7 @@ index = SearchIndex(
 result = search_index_client.create_or_update_index(index=index)
 
 search_client = SearchClient(
-    endpoint=os.getenv("AZURE_AI_SEARCH_ENDPOINT"),
+    endpoint=settings.azure_ai_search_endpoint,
     credential=credential,
     index_name=index.name,
 )
@@ -156,7 +170,7 @@ search_client = SearchClient(
 #
 
 ingestion = az_ai.ingestion.Ingestion(
-    repository=LocalRepository(path=Path("/tmp/itsarag_ingestion")),
+    repository=LocalRepository(path=settings.repository_path),
 )
 
 class Figure(ImageFragment):
@@ -224,8 +238,6 @@ def describe_figure(
     """
     from az_ai.ingestion.tools.markdown import extract_code_block
 
-    MAX_TOKENS = 2000
-    TEMPERATURE = 0.0
     SYSTEM_CONTEXT = """\
         You are a helpful assistant that describe images in in vivid, precise details. 
 
@@ -243,7 +255,7 @@ def describe_figure(
     """
 
     response = azure_openai_client.chat.completions.create(
-        model="gpt-4.1-2025-04-14",
+        model=settings.model_name,
         messages=[
             {"role": "system", "content": SYSTEM_CONTEXT},
             {
@@ -262,8 +274,8 @@ def describe_figure(
                 ],
             },
         ],
-        temperature=TEMPERATURE,
-        max_tokens=MAX_TOKENS,
+        temperature=settings.temperature,
+        max_tokens=settings.max_tokens,
     )
 
     return FigureDescription.create_from(
@@ -363,6 +375,7 @@ with open("examples/itsarag.md", "w") as f:
 
 mlflow.set_experiment("itsarag")
 with mlflow.start_run():
+    mlflow.log_params(settings.as_params())
     # with mlflow.start_span("ingestion"):
     ingestion.add_document_from_file("tests/data/human-nutrition-2020-short.pdf")
     # ingestion.add_document_from_file("../itsarag/data/fsi/pdf/2023 FY GOOGL Short.pdf")
