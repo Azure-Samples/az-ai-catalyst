@@ -57,13 +57,13 @@ def fragment_as_table(fragment: Fragment) -> Panel:
     else:
         match fragment.mime_type:
             case "text/markdown":
-                content = fragment.content.decode("utf-8").splitlines()
+                content = fragment.content_as_str().splitlines()
                 content = (content[:50] + ["\n__Truncated...__"]) if len(content) > 50 else content
                 content = Markdown("\n".join(content))
             case "text/plain":
-                content = Text(escape(fragment.content.decode("utf-8")), overflow="ellipsis")
+                content = Text(escape(fragment.content_as_str()), overflow="ellipsis")
             case "application/json":
-                content = JSON(fragment.content.decode("utf-8"))
+                content = JSON(fragment.content_as_str())
             case mime if mime.startswith("image/"):
                 content= Text(f"{mime} image placeholder...", style="italic")
             case _:

@@ -62,7 +62,7 @@ class Ingestion:
         for fragment in self.repository.find(FragmentSelector(fragment_type="Chunk")):
             document = {
                 "id": fragment.id,
-                "content": fragment.content.decode("utf-8"),
+                "content": fragment.content_as_str(),
                 "vector": fragment.vector,
             }
             for key, value in fragment.metadata.items():

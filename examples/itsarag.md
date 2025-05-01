@@ -8,6 +8,7 @@ flowchart TD
     apply_document_intelligence@{ shape: rect, label: "apply_document_intelligence" }
     Fragment_figure@{ shape: doc, label: "Fragment[figure]" }
     extract_figures@{ shape: rect, label: "extract_figures" }
+    ImageFragment_figure@{ shape: doc, label: "ImageFragment[figure]" }
     Fragment_figure_description@{ shape: doc, label: "Fragment[figure_description]" }
     describe_figure@{ shape: rect, label: "describe_figure" }
     Fragment_md_fragment@{ shape: doc, label: "Fragment[md_fragment]" }
@@ -18,7 +19,7 @@ flowchart TD
     apply_document_intelligence --> Fragment_document_intelligence_result
     Fragment_document_intelligence_result --> extract_figures
     extract_figures -- \* --> Fragment_figure
-    Fragment_figure --> describe_figure
+    ImageFragment_figure --> describe_figure
     describe_figure --> Fragment_figure_description
     Fragment_document_intelligence_result --> split_markdown
     split_markdown -- \* --> Fragment_md_fragment

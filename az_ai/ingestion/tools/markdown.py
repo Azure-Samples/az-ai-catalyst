@@ -8,8 +8,7 @@ from azure.ai.documentintelligence.models import (
 )
 from PIL import Image
 
-from az_ai.ingestion import Fragment
-from az_ai.ingestion.tools.images import image_binary, image_data_url
+from az_ai.ingestion import Fragment, ImageFragment
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +24,7 @@ class MarkdownFigureExtractor:
         logger.info("Extracting figures from fragment: %s", fragment)
 
         self.document_intelligence_result = AnalyzeResult(fragment.metadata["document_intelligence_result"])
-        self.content: str = fragment.content.decode("utf-8")
+        self.content: str = fragment.content_as_str()
 
         if not self.document_intelligence_result.figures:
             logger.info("No figures found in the document.")
@@ -74,33 +73,30 @@ class MarkdownFigureExtractor:
             page_number - 1,  # Document Intelligence page numbers are 1-based
             bounding_box,
         )
-        data_url = image_data_url(image, "image/png")
         update_metadata = {
             "page_number": page_number,
             "figure_index": figure_index,
             "figure_id": figure.id,
-            "data_url": data_url,
             "document_intelligence_result": None,
         }
         if figure_caption:
             update_metadata["caption"] = figure_caption
 
         import mlflow
+
         mlflow.log_image(image, key=f"figure_{figure_index}.png")
 
-        return Fragment.create_from(
+        return ImageFragment.create_from(
             fragment,
             label="figure",
             human_index=figure_index,
-            content=image_binary(image, "image/png"),
-            mime_type="image/png",
             update_metadata=update_metadata,
-        )
+        ).set_content_from_image(image, "image/png")
 
     def _extract_bounding_box(self, fragment: Fragment, figure: DocumentFigure):
         figure_caption = None
         figure_content = ""
-        for i, span in enumerate(figure.spans):
+        for span in figure.spans: # TODO: ???
             figure_content += self.content[span.offset : span.offset + span.length]
         if figure.caption:
             figure_caption = figure.caption.content

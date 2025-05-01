@@ -6,8 +6,9 @@ flowchart TD
     Document_@{ shape: doc, label: "Document[]" }
     Fragment_document_intelligence_result@{ shape: doc, label: "Fragment[document_intelligence_result]" }
     apply_document_intelligence@{ shape: rect, label: "apply_document_intelligence" }
-    Fragment_page_image@{ shape: doc, label: "Fragment[page_image]" }
+    ImageFragment_page_image@{ shape: doc, label: "ImageFragment[page_image]" }
     split_to_page_images@{ shape: rect, label: "split_to_page_images" }
+    Fragment_page_image@{ shape: doc, label: "Fragment[page_image]" }
     Fragment_llm_result@{ shape: doc, label: "Fragment[llm_result]" }
     apply_llm_to_pages@{ shape: rect, label: "apply_llm_to_pages" }
     Fragment_summary@{ shape: doc, label: "Fragment[summary]" }
@@ -17,7 +18,7 @@ flowchart TD
     Document_ --> apply_document_intelligence
     apply_document_intelligence --> Fragment_document_intelligence_result
     Document_ --> split_to_page_images
-    split_to_page_images -- \* --> Fragment_page_image
+    split_to_page_images -- \* --> ImageFragment_page_image
     Fragment_document_intelligence_result -- \* --> apply_llm_to_pages
     Fragment_page_image -- \* --> apply_llm_to_pages
     apply_llm_to_pages --> Fragment_llm_result

@@ -1,12 +1,16 @@
+import base64
 import json
 import mimetypes
 from collections.abc import Callable
+from io import BytesIO
 from typing import (
     Any,
+    Self,
     TypeVar,
 )
 from uuid import uuid4
 
+from PIL.Image import Image
 from pydantic import (
     BaseModel,
     ConfigDict,
@@ -61,6 +65,29 @@ class Fragment(BaseModel):
         index_suffix = f"_{self.human_index:0>3}" if self.human_index is not None else ""
         return "/".join(self.parent_names + [f"{self.label}{index_suffix}{suffix}"])
         
+
+    def content_as_str(self, encoding="utf-8") -> str:
+        """
+        Convert Fragment.content toa string using the specified encoding.
+        If the content is None, an empty string is returned.
+        Args:
+            encoding (str): The encoding to use for conversion. Defaults to "utf-8".
+        Returns:
+            str: The content as a string.
+        """
+        if self.content is None:
+            return ""
+        return self.content.decode(encoding)
+        
+    def content_as_base64(self) -> str:
+        """
+        Convert Fragment.content to a base64 encoded string.
+        If the content is None, an empty string is returned.
+        Returns:
+            str: The base64 encoded content.
+        """
+        return base64.b64encode(self.content).decode("utf-8")
+
     def __str__(self):
         return f"{self.id}:{self.__class__.__name__}[{self.label}, {self.human_file_name()}]"
 
@@ -86,7 +113,7 @@ class Fragment(BaseModel):
             else:
                 data["metadata"] = extra_metadata
         return cls(**data)
-
+    
     # TODO: remove?
     @classmethod
     def __get_pydantic_json_schema__(
@@ -111,8 +138,9 @@ class Fragment(BaseModel):
 
         This provides a key that makes serialization robust against actual class
         name changes.
+        Defaults to cls.__name__, but can be overridden in subclasses.
         """
-        return "Fragment"
+        return cls.__name__
 
     @model_serializer(mode="wrap")
     def custom_model_dump(
@@ -187,6 +215,39 @@ class Chunk(Fragment):
     @classmethod
     def class_name(cls) -> str:
         return "Chunk"
+
+class ImageFragment(Fragment):
+    def content_as_data_url(self) -> str:
+        """
+        Get the image data URL for the fragment.
+        """
+        return f"data:{self.mime_type};base64,{self.content_as_base64()}"
+    
+    def set_content_from_image(self, image: Image, mime_type: str = None) -> Self:
+        """
+        Set the content (bytes) to the serialized version of the image.
+        Args:
+        """
+        if not mime_type:
+            mime_type = self.mime_type
+
+        if not mime_type:
+            raise ValueError("Either self.mime_type or mime_type must be set")
+        
+        if mime_type not in ["image/jpeg", "image/png"]:
+            raise ValueError(f"Unsupported mime type: {mime_type}")
+
+        buffer = BytesIO()
+        image.save(buffer, format=mime_type.split("/")[1].upper())
+        self.content = buffer.getvalue()
+        if self.mime_type != mime_type:
+            self.mime_type = mime_type
+
+        return self
+
+    @classmethod
+    def class_name(cls) -> str:
+        return "ImageFragment"
 
 
 #

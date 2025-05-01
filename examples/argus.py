@@ -10,11 +10,10 @@ from azure.ai.documentintelligence.models import (
 )
 from azure.ai.projects import AIProjectClient
 from azure.identity import DefaultAzureCredential
-from azure.search.documents.indexes import SearchIndexClient
 from mlflow.entities import SpanType
 
 import az_ai.ingestion
-from az_ai.ingestion import Document, Fragment, IngestionSettings
+from az_ai.ingestion import Document, Fragment, ImageFragment, IngestionSettings
 from az_ai.ingestion.repository import LocalRepository
 from az_ai.ingestion.schema import FragmentSelector
 
@@ -33,6 +32,7 @@ class ArgusSettings(IngestionSettings):
             "model_name": self.model_name,
             "temperature": self.temperature,
         }
+
 
 settings = ArgusSettings()
 
@@ -55,10 +55,6 @@ azure_openai_client = project.inference.get_azure_openai_client(
     api_version=settings.azure_openai_api_version,
 )
 
-search_index_client = SearchIndexClient(
-    endpoint=settings.azure_ai_search_endpoint,
-    credential=credential,
-)
 
 #
 # Ingestion workflow
@@ -74,7 +70,8 @@ Your task is to extract the JSON contents from a document using the provided mat
 1. Custom instructions for the extraction process
 2. A JSON schema template for structuring the extracted data
 3. markdown (from the document)
-4. Images (from the document, not always provided or comprehensive)"""
+4. Images (from the document, not always provided or comprehensive)
+"""
 
 EXTRACTION_SYSTEM_PROMPT = """
 Your task is to extract the JSON contents from a document using the provided materials:
@@ -179,7 +176,7 @@ def apply_document_intelligence(
 @mlflow.trace(span_type=SpanType.CHAIN)
 def split_to_page_images(
     document: Document,
-) -> Annotated[list[Fragment], "page_image"]:
+) -> Annotated[list[ImageFragment], "page_image"]:
     """
     1. Generate an image for each page
     """
@@ -188,8 +185,6 @@ def split_to_page_images(
     import pymupdf
     from PIL import Image
     from pymupdf import Matrix
-
-    from az_ai.ingestion.tools.images import image_binary
 
     pdf_document = pymupdf.open(document.metadata["file_path"])
     results = []
@@ -200,16 +195,14 @@ def split_to_page_images(
         image = Image.open(io.BytesIO(image_bytes))
 
         results.append(
-            Fragment.create_from(
+            ImageFragment.create_from(
                 document,
                 label="page_image",
-                mime_type="image/png",
                 human_index=page_num + 1,
-                content=image_binary(image, "image/png"),
                 metadata={
                     "page_num": page_num,
                 },
-            )
+            ).set_content_from_image(image, "image/png")
         )
     return results
 
@@ -224,7 +217,6 @@ def apply_llm_to_pages(
     2. Send every page as Markdown and the images for each page the LLM
     3. Extract the result into an llm_result fragment
     """
-    from az_ai.ingestion.tools.images import image_data_url
 
     doc_intel_fragment = next(f for f in fragments if f.label == "document_intelligence_result")
     system_context = EXTRACTION_SYSTEM_PROMPT.format(
@@ -236,10 +228,10 @@ def apply_llm_to_pages(
         {
             "role": "user",
             "content": [
-                {"type": "text", "text": doc_intel_fragment.content.decode("utf-8")},
+                {"type": "text", "text": doc_intel_fragment.content_as_str()},
             ]
             + [
-                {"type": "image_url", "image_url": {"url": image_data_url(fragment.content, "image/png")}}
+                {"type": "image_url", "image_url": {"url": fragment.content_as_data_url()}}
                 for fragment in fragments
                 if fragment.label == "page_image"
             ],
@@ -278,7 +270,7 @@ def extract_summary(
     """
     messages = [
         {"role": "user", "content": reasoning_prompt},
-        {"role": "user", "content": di_result.content.decode("utf-8")},
+        {"role": "user", "content": di_result.content_as_str()},
     ]
 
     response = azure_openai_client.chat.completions.create(model="gpt-4.1-2025-04-14", messages=messages, seed=0)
@@ -304,8 +296,6 @@ def evaluate_with_llm(
     2. Send every page as Markdown and the images for each page the LLM
     3. Extract the result into an llm_result fragment
     """
-    from az_ai.ingestion.tools.images import image_data_url
-
     llm_result = next(f for f in fragments if f.label == "llm_result")
 
     messages = [
@@ -315,11 +305,11 @@ def evaluate_with_llm(
             "content": [
                 {
                     "type": "text",
-                    "text": f"Here is the extracted data:\n```json\n{llm_result.content.decode('utf-8')}```\n",
+                    "text": f"Here is the extracted data:\n```json\n{llm_result.content_as_str()}```\n",
                 },
             ]
             + [
-                {"type": "image_url", "image_url": {"url": image_data_url(image.content, "image/png")}}
+                {"type": "image_url", "image_url": {"url": image.content_as_data_url()}}
                 for image in fragments
                 if image.label == "page_image"
             ],
@@ -356,9 +346,13 @@ with mlflow.start_run():
         FragmentSelector(fragment_type="Fragment", labels=["evaluated_result", "llm_result"])
     ):
         mlflow.log_artifact(ingestion.repository.human_content_path(fragment))
+
+
+
+
 #
 # Possible improvements:
-
+#
 # @ingestion.operation()
 # def apply_llm_to_pages(
 #     document_intelligence_result: Fragment,

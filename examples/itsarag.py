@@ -30,7 +30,7 @@ from azure.search.documents.indexes.models import (
 from mlflow.entities import SpanType
 
 import az_ai.ingestion
-from az_ai.ingestion import Chunk, Document, Fragment
+from az_ai.ingestion import Chunk, Document, Fragment, ImageFragment
 from az_ai.ingestion.repository import LocalRepository
 
 dotenv.load_dotenv()
@@ -209,7 +209,7 @@ def extract_figures(
 @ingestion.operation()
 @mlflow.trace(span_type=SpanType.CHAIN)
 def describe_figure(
-    image: Annotated[Fragment, {"label": "figure"}],
+    image: Annotated[ImageFragment, {"label": "figure"}],
 ) -> Annotated[Fragment, "figure_description"]:
     """
     1. Process the image fragment and generate a description.
@@ -251,7 +251,7 @@ def describe_figure(
                         if "caption" in image.metadata
                         else "Describe this image.",
                     },
-                    {"type": "image_url", "image_url": {"url": image.metadata["data_url"]}},
+                    {"type": "image_url", "image_url": {"url": image.content_as_data_url()}},
                 ],
             },
         ],
@@ -266,6 +266,7 @@ def describe_figure(
         label="figure_description",
         update_metadata={
             "azure_openai_response": response.to_dict(),
+            "data_url": image.content_as_data_url(),
         },
     )
 
@@ -290,7 +291,7 @@ def split_markdown(
 
     fragments = []
     page_nb  = 1
-    for i, chunk in enumerate(splitter.chunks(fragment.content.decode("utf-8"))):
+    for i, chunk in enumerate(splitter.chunks(fragment.content_as_str())):
         content = " ".join(figure_pattern.split(chunk))
         # TODO: this is a bit of a hack
         if page_break_pattern.match(content):
@@ -322,7 +323,7 @@ def embed(
     for index, fragment in enumerate(fragments):
         response = azure_openai_client.embeddings.create(
             model="text-embedding-3-large",
-            input=fragment.content.decode("utf-8"),
+            input=fragment.content_as_str(),
         )
         embedding = response.data[0].embedding
         results.append(
