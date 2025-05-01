@@ -1,5 +1,80 @@
 # AZ AI Ingestion Processor (Experimental)
 
+Experimental __Ingestion framework__ to make it easier to build ingestion pipelines for Azure OpenAI Services.
+
+## What is it?
+
+The ingestion processor is a framework to build ingestion pipelines for Azure OpenAI Services. It allows you to define a series of operations that can be applied to documents, and it handles the execution of those operations in the correct order.
+
+The ingestion processor is designed to be flexible and extensible, allowing you to define your own operations and customize the behavior of the framework to suit your needs.
+
+## Why use it?
+
+Ultimately we want this framework to:
+
+- Designed for simplicity and ease of use
+- Highly flexible and customizable
+- Includes native integration with Azure OpenAI Services
+- Automatically resumes data ingestion from the point of failure
+- Offers built-in tools for managing settings
+- Provides a comprehensive set of ready-to-use operations
+
+
+> [!WARNING]
+> Right now operations are executed in order of appearance in the code. Calculating dependencies
+> between operations is not supported yet. This means that if you have a complex graph you 
+> have to be careful ensuring that fragments needed for subsequent operations are already processed before 
+> they are used.
+
+## How ot use it
+
+Here is a simple example of how to use the ingestion processor.
+```python
+import az_ai.ingestion
+
+from azure.identity import DefaultAzureCredential
+from az_ai.ingestion import Document, DocumentIntelligenceResult
+
+credential = DefaultAzureCredential()
+project = AIProjectClient.from_connection_string(
+    conn_str=os.getenv("AZURE_AI_PROJECT_CONNECTION_STRING"), credential=credential
+)
+
+document_intelligence_client = DocumentIntelligenceClient(
+    endpoint=os.getenv("AZURE_OPENAI_ENDPOINT"),
+    api_version="2024-11-30",
+    credential=credential,
+)
+
+ingestion = az_ai.ingestion.Ingestion()
+
+@ingestion.operation()
+def apply_document_intelligence(
+    document: Document,
+) -> Annotated[DocumentIntelligenceResult, "document_intelligence_result"]:
+    poller = document_intelligence_client.begin_analyze_document(
+        model_id="prebuilt-layout",
+        body=AnalyzeDocumentRequest(
+            bytes_source=document.content,
+        ),
+        features=[
+            DocumentAnalysisFeature.OCR_HIGH_RESOLUTION,
+        ],
+        output_content_format=DocumentContentFormat.Markdown,
+    )
+    return DocumentIntelligenceResult.create_from_result(
+        document,
+        label="document_intelligence_result",
+        analyze_result=poller.result(),
+    )
+
+ingestion.add_document_from_file("tests/data/test.pdf")
+
+ingestion()
+```
+
+See [examples/itsarag.py](examples/itsarag.py) and [examples/argus.py](examples/argus.py) for more complex examples.
+
 ## Quick Start
 
 ### Configure the environment
