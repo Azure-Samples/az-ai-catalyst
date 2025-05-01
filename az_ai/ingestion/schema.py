@@ -10,6 +10,9 @@ from typing import (
 )
 from uuid import uuid4
 
+from azure.ai.documentintelligence.models import (
+    AnalyzeResult,
+)
 from PIL.Image import Image
 from pydantic import (
     BaseModel,
@@ -185,9 +188,9 @@ class Fragment(BaseModel):
     def get_subclass(cls, cls_name):
         if cls_name == 'Fragment':
             return Fragment
-        for cls in cls.all_subclasses():
-            if cls.class_name() == cls_name:
-                return cls
+        for sub_cls in cls.all_subclasses():
+            if sub_cls.class_name() == cls_name:
+                return sub_cls
         raise ValueError(f"'{cls_name}' is not a subclass of Fragment")
 
 
@@ -203,18 +206,11 @@ class Document(Fragment):
         else:
             return super().human_file_name(*args, **kwargs)
 
-    @classmethod
-    def class_name(cls) -> str:
-        return "Document"
 
 class Chunk(Fragment):
     vector: list[float] = Field(
         default=None, description="Chunk of the fragment."
     )
-
-    @classmethod
-    def class_name(cls) -> str:
-        return "Chunk"
 
 class ImageFragment(Fragment):
     def content_as_data_url(self) -> str:
@@ -245,10 +241,29 @@ class ImageFragment(Fragment):
 
         return self
 
-    @classmethod
-    def class_name(cls) -> str:
-        return "ImageFragment"
 
+
+class DocumentIntelligenceResult(Fragment):
+    def analyze_result(self) -> AnalyzeResult:
+        """
+        Get the analyze result from the metadata.
+        """
+        if "document_intelligence_result" in self.metadata:
+            return AnalyzeResult(self.metadata["document_intelligence_result"])
+        else:
+            raise ValueError('No analyze result found in metadata["document_intelligence_result"]')
+
+    @classmethod
+    def create_from_result(cls, source_fragment, label, analyze_result : AnalyzeResult):
+        return cls.create_from(
+            source_fragment,
+            label=label,
+            mime_type="text/markdown",
+            content=analyze_result.content,
+            update_metadata={
+                "document_intelligence_result": analyze_result.as_dict(),
+            },
+        )        
 
 #
 # Operations

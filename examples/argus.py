@@ -13,7 +13,7 @@ from azure.identity import DefaultAzureCredential
 from mlflow.entities import SpanType
 
 import az_ai.ingestion
-from az_ai.ingestion import Document, Fragment, ImageFragment, IngestionSettings
+from az_ai.ingestion import Document, DocumentIntelligenceResult, Fragment, ImageFragment, IngestionSettings
 from az_ai.ingestion.repository import LocalRepository
 from az_ai.ingestion.schema import FragmentSelector
 
@@ -63,6 +63,16 @@ azure_openai_client = project.inference.get_azure_openai_client(
 ingestion = az_ai.ingestion.Ingestion(
     repository=LocalRepository(path=settings.repository_path),
 )
+
+class Summary(Fragment):
+    pass
+
+class Extraction(Fragment):
+    pass 
+
+class ExtractionEvaluation(Fragment):
+    pass 
+
 
 JSON_SCHEMA = "{}"
 EXTRACTION_PROMPT = """
@@ -145,7 +155,7 @@ EVALUATION_SYSTEM_PROMPT = """
 @mlflow.trace(span_type=SpanType.CHAIN)
 def apply_document_intelligence(
     document: Document,
-) -> Annotated[Fragment, "document_intelligence_result"]:
+) -> Annotated[DocumentIntelligenceResult, "document_intelligence_result"]:
     """
     Get the PDF and apply DocumentIntelligence
     Generate a fragment containing DocumentIntelligenceResult and Markdown
@@ -160,15 +170,10 @@ def apply_document_intelligence(
         ],
         output_content_format=DocumentContentFormat.Markdown,
     )
-    result = poller.result()
-    return Fragment.create_from(
+    return DocumentIntelligenceResult.create_from_result(
         document,
         label="document_intelligence_result",
-        mime_type="text/markdown",
-        content=result.content,
-        update_metadata={
-            "document_intelligence_result": result.as_dict(),
-        },
+        analyze_result=poller.result(),
     )
 
 
@@ -211,7 +216,7 @@ def split_to_page_images(
 @mlflow.trace(span_type=SpanType.CHAIN)
 def apply_llm_to_pages(
     fragments: Annotated[list[Fragment], {"label": ["document_intelligence_result", "page_image"]}],
-) -> Annotated[Fragment, "llm_result"]:
+) -> Annotated[Extraction, "llm_result"]:
     """
     1. Generate an image for each page
     2. Send every page as Markdown and the images for each page the LLM
@@ -243,7 +248,7 @@ def apply_llm_to_pages(
         messages=messages,
         temperature=settings.temperature,
     )
-    return Fragment.create_from(
+    return Extraction.create_from(
         doc_intel_fragment,
         content=response.choices[0].message.content,
         mime_type="application/json",
@@ -257,8 +262,8 @@ def apply_llm_to_pages(
 @ingestion.operation()
 @mlflow.trace(span_type=SpanType.CHAIN)
 def extract_summary(
-    di_result: Annotated[Fragment, {"label": "document_intelligence_result"}],
-) -> Annotated[Fragment, "summary"]:
+    di_result: DocumentIntelligenceResult,
+) -> Annotated[Summary, "summary"]:
     """
     1. Extract the summary from the LLM result
     2. Generate a fragment containing the summary
@@ -275,7 +280,7 @@ def extract_summary(
 
     response = azure_openai_client.chat.completions.create(model="gpt-4.1-2025-04-14", messages=messages, seed=0)
 
-    return Fragment.create_from(
+    return Summary.create_from(
         di_result,
         content=response.choices[0].message.content,
         mime_type="text/plain",
@@ -290,7 +295,7 @@ def extract_summary(
 @mlflow.trace(span_type=SpanType.CHAIN)
 def evaluate_with_llm(
     fragments: Annotated[list[Fragment], {"label": ["llm_result", "page_image"]}],
-) -> Annotated[Fragment, "evaluated_result"]:
+) -> Annotated[ExtractionEvaluation, "evaluated_result"]:
     """
     1. Generate an image for each page
     2. Send every page as Markdown and the images for each page the LLM
@@ -318,7 +323,7 @@ def evaluate_with_llm(
 
     response = azure_openai_client.chat.completions.create(model=settings.model_name, messages=messages, seed=0)
 
-    return Fragment.create_from(
+    return ExtractionEvaluation.create_from(
         llm_result,
         content=response.choices[0].message.content,
         mime_type="application/json",
@@ -353,6 +358,7 @@ with mlflow.start_run():
 #
 # Possible improvements:
 #
+
 # @ingestion.operation()
 # def apply_llm_to_pages(
 #     document_intelligence_result: Fragment,

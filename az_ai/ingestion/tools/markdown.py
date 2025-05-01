@@ -3,12 +3,11 @@ import re
 
 import pymupdf
 from azure.ai.documentintelligence.models import (
-    AnalyzeResult,
     DocumentFigure,
 )
 from PIL import Image
 
-from az_ai.ingestion import Fragment, ImageFragment
+from az_ai.ingestion import DocumentIntelligenceResult, Fragment, ImageFragment
 
 logger = logging.getLogger(__name__)
 
@@ -20,27 +19,28 @@ def extract_code_block(markdown: str) -> str:
 
 
 class MarkdownFigureExtractor:
-    def extract(self, fragment: Fragment) -> list[Fragment]:
-        logger.info("Extracting figures from fragment: %s", fragment)
+    def extract(self, di_fragment: DocumentIntelligenceResult, figure_class: type = ImageFragment) -> list[Fragment]:
+        logger.info("Extracting figures from fragment: %s", di_fragment)
 
-        self.document_intelligence_result = AnalyzeResult(fragment.metadata["document_intelligence_result"])
-        self.content: str = fragment.content_as_str()
+        self.document_intelligence_result = di_fragment.analyze_result()
+        self.content: str = di_fragment.content_as_str()
 
         if not self.document_intelligence_result.figures:
             logger.info("No figures found in the document.")
             return []
 
         results = [
-            self._extract_figure_from_page(fragment, figure_index, figure)
+            self._extract_figure_from_page(di_fragment, figure_index, figure, figure_class)
             for figure_index, figure in enumerate(self.document_intelligence_result.figures)
         ]
         return results
 
     def _extract_figure_from_page(
         self,
-        fragment: Fragment,
+        fragment: DocumentIntelligenceResult,
         figure_index: int,
         figure: DocumentFigure,
+        figure_class: type,
     ):
         """
         Extracts a figure from a page in the document.
@@ -86,7 +86,7 @@ class MarkdownFigureExtractor:
 
         mlflow.log_image(image, key=f"figure_{figure_index}.png")
 
-        return ImageFragment.create_from(
+        return figure_class.create_from(
             fragment,
             label="figure",
             human_index=figure_index,

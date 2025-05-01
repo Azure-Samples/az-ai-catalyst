@@ -30,18 +30,18 @@ from azure.search.documents.indexes.models import (
 from mlflow.entities import SpanType
 
 import az_ai.ingestion
-from az_ai.ingestion import Chunk, Document, Fragment, ImageFragment
+from az_ai.ingestion import Chunk, Document, DocumentIntelligenceResult, Fragment, ImageFragment
 from az_ai.ingestion.repository import LocalRepository
 
 dotenv.load_dotenv()
 
-#logging.basicConfig(level=logging.INFO)
-#logging.getLogger("azure.core").setLevel(logging.WARNING)
-#logging.getLogger("azure.identity").setLevel(logging.WARNING)
+# logging.basicConfig(level=logging.INFO)
+# logging.getLogger("azure.core").setLevel(logging.WARNING)
+# logging.getLogger("azure.identity").setLevel(logging.WARNING)
 
 mlflow.openai.autolog()
-#mlflow.config.enable_async_logging()
-#mlflow.config.enable_system_metrics_logging()
+# mlflow.config.enable_async_logging()
+# mlflow.config.enable_system_metrics_logging()
 
 #
 # Initialize Azure AI Foundry Services we will need
@@ -151,17 +151,30 @@ search_client = SearchClient(
     index_name=index.name,
 )
 
+#
+# Ingestion workflow 
+#
 
 ingestion = az_ai.ingestion.Ingestion(
     repository=LocalRepository(path=Path("/tmp/itsarag_ingestion")),
 )
 
+class Figure(ImageFragment):
+    pass
+
+
+class FigureDescription(Fragment):
+    pass
+
+
+class MarkdownFragment(Fragment):
+    pass
 
 @ingestion.operation()
 @mlflow.trace(span_type=SpanType.CHAIN)
 def apply_document_intelligence(
     document: Document,
-) -> Annotated[Fragment, "document_intelligence_result"]:
+) -> Annotated[DocumentIntelligenceResult, "document_intelligence_result"]:
     """
     Get the PDF and apply DocumentIntelligence
     Generate a fragment containing DocumentIntelligenceResult and Markdown
@@ -177,24 +190,18 @@ def apply_document_intelligence(
         ],
         output_content_format=DocumentContentFormat.Markdown,
     )
-
-    analyze_result = poller.result()
-    return Fragment.create_from(
+    return DocumentIntelligenceResult.create_from_result(
         document,
         label="document_intelligence_result",
-        mime_type="text/markdown",
-        content=analyze_result.content,
-        update_metadata={
-            "document_intelligence_result": analyze_result.as_dict(),
-        },
+        analyze_result=poller.result(),
     )
 
 
 @ingestion.operation()
 @mlflow.trace(span_type=SpanType.CHAIN)
 def extract_figures(
-    fragment: Annotated[Fragment, {"label": "document_intelligence_result"}],
-) -> Annotated[list[Fragment], "figure"]:
+    fragment: DocumentIntelligenceResult,
+) -> Annotated[list[Figure], "figure"]:
     """
     1. Process every figure in the "document_intelligence_result" fragment, extract the figure from
     its bounding box.
@@ -203,14 +210,14 @@ def extract_figures(
     """
     from az_ai.ingestion.tools.markdown import MarkdownFigureExtractor
 
-    return MarkdownFigureExtractor().extract(fragment)
+    return MarkdownFigureExtractor().extract(fragment, Figure)
 
 
 @ingestion.operation()
 @mlflow.trace(span_type=SpanType.CHAIN)
 def describe_figure(
-    image: Annotated[ImageFragment, {"label": "figure"}],
-) -> Annotated[Fragment, "figure_description"]:
+    image: ImageFragment,
+) -> Annotated[FigureDescription, "figure_description"]:
     """
     1. Process the image fragment and generate a description.
     2. Create a new fragment with the description.
@@ -259,7 +266,7 @@ def describe_figure(
         max_tokens=MAX_TOKENS,
     )
 
-    return Fragment.create_from(
+    return FigureDescription.create_from(
         image,
         content=extract_code_block(response.choices[0].message.content)[0],
         mime_type="text/markdown",
@@ -274,8 +281,8 @@ def describe_figure(
 @ingestion.operation()
 @mlflow.trace(span_type=SpanType.CHAIN)
 def split_markdown(
-    fragment: Annotated[Fragment, {"label": "document_intelligence_result"}],
-) -> Annotated[list[Fragment], "md_fragment"]:
+    document_intelligence_result: DocumentIntelligenceResult,
+) -> Annotated[list[MarkdownFragment], "md_fragment"]:
     """
     1. Split the Markdown in the "document_intelligence_result" fragment into multiple fragments.
     2. Create a new Markdown fragment for each split.
@@ -290,26 +297,27 @@ def split_markdown(
     page_break_pattern = re.compile(r"<!-- PageBreak -->")
 
     fragments = []
-    page_nb  = 1
-    for i, chunk in enumerate(splitter.chunks(fragment.content_as_str())):
+    page_nb = 1
+    for i, chunk in enumerate(splitter.chunks(document_intelligence_result.content_as_str())):
         content = " ".join(figure_pattern.split(chunk))
         # TODO: this is a bit of a hack
         if page_break_pattern.match(content):
             page_nb += 1
         fragments.append(
-            Fragment.create_from(
-                fragment,
+            MarkdownFragment.create_from(
+                document_intelligence_result,
                 label="md_fragment",
                 content=content,
                 mime_type="text/markdown",
                 human_index=i + 1,
                 metadata={
-                    "file_name": fragment.metadata["file_name"],
+                    "file_name": document_intelligence_result.metadata["file_name"],
                     "page_number": page_nb,
                 },
             )
         )
     return fragments
+
 
 @ingestion.operation()
 @mlflow.trace(span_type=SpanType.CHAIN)
@@ -328,17 +336,17 @@ def embed(
         embedding = response.data[0].embedding
         results.append(
             Chunk.create_from(
-                fragment, 
-                label="chunk", 
-                human_index=index + 1, 
-                content=fragment.content, 
+                fragment,
+                label="chunk",
+                human_index=index + 1,
+                content=fragment.content,
                 vector=embedding,
                 metadata={
                     "file_name": fragment.metadata["file_name"],
                     "page_number": fragment.metadata["page_number"],
                     "data_url": fragment.metadata.get("data_url", None),
                     "url": f"https://www.example.com/{fragment.metadata['file_name']}",
-                }
+                },
             )
         )
 
@@ -355,10 +363,10 @@ with open("examples/itsarag.md", "w") as f:
 
 mlflow.set_experiment("itsarag")
 with mlflow.start_run():
-    #with mlflow.start_span("ingestion"):
+    # with mlflow.start_span("ingestion"):
     ingestion.add_document_from_file("tests/data/human-nutrition-2020-short.pdf")
-    #ingestion.add_document_from_file("../itsarag/data/fsi/pdf/2023 FY GOOGL Short.pdf")
-    #ingestion.add_document_from_file("../itsarag/data/fsi/pdf/2023 FY GOOGL.pdf")
+    # ingestion.add_document_from_file("../itsarag/data/fsi/pdf/2023 FY GOOGL Short.pdf")
+    # ingestion.add_document_from_file("../itsarag/data/fsi/pdf/2023 FY GOOGL.pdf")
 
     ingestion(search_client=search_client)
 
