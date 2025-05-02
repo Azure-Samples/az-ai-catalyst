@@ -32,6 +32,7 @@ class Fragment(BaseModel):
     """
     A class representing a fragment of document/media.
     """
+
     model_config = ConfigDict(extra="forbid")
 
     id: str = Field(
@@ -43,19 +44,17 @@ class Fragment(BaseModel):
         default_factory=list,
         description="List of human-readable parent names for the fragment.",
     )
-    human_index: int | None = Field( 
+    human_index: int | None = Field(
         default=None,
         description="Index of the fragment when multiple fragments with the same label and parent_names are generated.",
     )
-    metadata: dict[str, Any] = Field(
-        ..., default_factory=dict, description="Metadata associated with the fragment."
-    )
+    metadata: dict[str, Any] = Field(..., default_factory=dict, description="Metadata associated with the fragment.")
     content_ref: str | None = Field(
         default=None,
         description="Reference to the content of the fragment.",
     )
     mime_type: str = Field(
-        default='application/octet-stream',
+        default="application/octet-stream",
         description="MIME type of the fragment.",
     )
     content: bytes | None = Field(
@@ -67,7 +66,7 @@ class Fragment(BaseModel):
     def human_file_name(self) -> Path:
         suffix = mimetypes.guess_extension(self.mime_type)
         index_suffix = f"_{self.human_index:0>3}" if self.human_index is not None else ""
-        return Path("/".join(self.parent_names + [f"{self.label}{index_suffix}{suffix}"]))        
+        return Path("/".join(self.parent_names + [f"{self.label}{index_suffix}{suffix}"]))
 
     def content_as_str(self, encoding="utf-8") -> str:
         """
@@ -81,7 +80,7 @@ class Fragment(BaseModel):
         if self.content is None:
             return ""
         return self.content.decode(encoding)
-        
+
     def content_as_base64(self) -> str:
         """
         Convert Fragment.content to a base64 encoded string.
@@ -97,8 +96,8 @@ class Fragment(BaseModel):
     @classmethod
     def create_from(cls, fragment, **kwargs: dict[str, Any]) -> "Fragment":
         data = dict(fragment.dict())
-        # Do not copy those 3 fields 
-        data.pop("id",  None)
+        # Do not copy those 3 fields
+        data.pop("id", None)
         data.pop("content_ref", None)
         for key in set(data.keys()):
             if key not in cls.model_fields:
@@ -116,12 +115,10 @@ class Fragment(BaseModel):
             else:
                 data["metadata"] = extra_metadata
         return cls(**data)
-    
+
     # TODO: remove?
     @classmethod
-    def __get_pydantic_json_schema__(
-        cls, core_schema: CoreSchema, handler: GetJsonSchemaHandler
-    ) -> JsonSchemaValue:
+    def __get_pydantic_json_schema__(cls, core_schema: CoreSchema, handler: GetJsonSchemaHandler) -> JsonSchemaValue:
         json_schema = handler(core_schema)
         json_schema = handler.resolve_ref_schema(json_schema)
 
@@ -146,9 +143,7 @@ class Fragment(BaseModel):
         return cls.__name__
 
     @model_serializer(mode="wrap")
-    def custom_model_dump(
-        self, handler: SerializerFunctionWrapHandler, info: SerializationInfo
-    ) -> dict[str, Any]:
+    def custom_model_dump(self, handler: SerializerFunctionWrapHandler, info: SerializationInfo) -> dict[str, Any]:
         data = handler(self)
         data["type"] = self.class_name()
         return data
@@ -180,13 +175,11 @@ class Fragment(BaseModel):
 
     @classmethod
     def all_subclasses(cls):
-        return set(cls.__subclasses__()).union(
-            [s for c in cls.__subclasses__() for s in c.all_subclasses()]
-        )
+        return set(cls.__subclasses__()).union([s for c in cls.__subclasses__() for s in c.all_subclasses()])
 
     @classmethod
     def get_subclass(cls, cls_name):
-        if cls_name == 'Fragment':
+        if cls_name == "Fragment":
             return Fragment
         for sub_cls in cls.all_subclasses():
             if sub_cls.class_name() == cls_name:
@@ -202,15 +195,14 @@ class Document(Fragment):
 
     def human_file_name(self, *args, **kwargs) -> Path:
         if "file_name" in self.metadata:
-             return Path(self.metadata["file_name"])
+            return Path(self.metadata["file_name"])
         else:
             return super().human_file_name(*args, **kwargs)
 
 
 class Chunk(Fragment):
-    vector: list[float] = Field(
-        default=None, description="Chunk of the fragment."
-    )
+    vector: list[float] = Field(default=None, description="Chunk of the fragment.")
+
 
 class ImageFragment(Fragment):
     def content_as_data_url(self) -> str:
@@ -218,7 +210,7 @@ class ImageFragment(Fragment):
         Get the image data URL for the fragment.
         """
         return f"data:{self.mime_type};base64,{self.content_as_base64()}"
-    
+
     def set_content_from_image(self, image: Image, mime_type: str = None) -> Self:
         """
         Set the content (bytes) to the serialized version of the image.
@@ -229,7 +221,7 @@ class ImageFragment(Fragment):
 
         if not mime_type:
             raise ValueError("Either self.mime_type or mime_type must be set")
-        
+
         if mime_type not in ["image/jpeg", "image/png"]:
             raise ValueError(f"Unsupported mime type: {mime_type}")
 
@@ -240,7 +232,6 @@ class ImageFragment(Fragment):
             self.mime_type = mime_type
 
         return self
-
 
 
 class DocumentIntelligenceResult(Fragment):
@@ -254,7 +245,7 @@ class DocumentIntelligenceResult(Fragment):
             raise ValueError('No analyze result found in metadata["document_intelligence_result"]')
 
     @classmethod
-    def create_from_result(cls, source_fragment, label, analyze_result : AnalyzeResult):
+    def create_from_result(cls, source_fragment, label, analyze_result: AnalyzeResult):
         return cls.create_from(
             source_fragment,
             label=label,
@@ -263,7 +254,8 @@ class DocumentIntelligenceResult(Fragment):
             update_metadata={
                 "document_intelligence_result": analyze_result.as_dict(),
             },
-        )        
+        )
+
 
 #
 # Operations
@@ -276,11 +268,10 @@ class FragmentSelector(BaseModel, frozen=True):
     """
     A class representing a fragment specification.
     """
+
     model_config = ConfigDict(extra="forbid")
 
-    fragment_type: str = Field(
-        ..., description="Type of the input parameter."
-    )
+    fragment_type: str = Field(..., description="Type of the input parameter.")
     labels: list[str] = Field(
         default=list(),
         description="Labels for the output parameter.",
@@ -299,22 +290,22 @@ class FragmentSelector(BaseModel, frozen=True):
     def __str__(self):
         result = f"{self.fragment_type}{{"
         if self.labels:
-            result += f"_{",".join(self.labels)}}}"
+            result += f"_{','.join(self.labels)}}}"
         return result
 
     def __hash__(self):
         return hash((self.fragment_type, tuple(self.labels)))
 
+
 class OperationInputSpec(BaseModel):
     """
     A class representing the input to an operation function.
     """
+
     model_config = ConfigDict(extra="forbid")
 
     name: str = Field(..., description="Name of the input parameter.")
-    fragment_type: str = Field(
-        ..., description="Type of the input parameter."
-    )
+    fragment_type: str = Field(..., description="Type of the input parameter.")
     multiple: bool = Field(..., description="Whether the input parameter accepts multiple input_specs.")
     filter: dict[str, Any] = Field(..., description="Filter for the input parameter.")
 
@@ -332,15 +323,15 @@ class OperationInputSpec(BaseModel):
             if isinstance(label_filters, str):
                 label_filters = [label_filters]
             return FragmentSelector(
-                    fragment_type=self.fragment_type,
-                    labels=label_filters,
-                )
-            
+                fragment_type=self.fragment_type,
+                labels=label_filters,
+            )
+
         else:
             raise ValueError("Filter must be a dictionary.")
 
     def __str__(self):
-        result = f"{self.fragment_type}{"*" if self.multiple else ""}{{"
+        result = f"{self.fragment_type}{'*' if self.multiple else ''}{{"
         if self.filter:
             result += f"{self.filter}"
         return result + "}"
@@ -350,11 +341,10 @@ class OperationOutputSpec(BaseModel):
     """
     A class representing the output of an operation function.
     """
+
     model_config = ConfigDict(extra="forbid")
 
-    fragment_type: str = Field(
-        ..., description="Type of the input parameter."
-    )
+    fragment_type: str = Field(..., description="Type of the input parameter.")
     multiple: bool = Field(..., description="Whether the output parameter is multiple.")
     label: str = Field(..., description="Label for the output parameter.")
 
@@ -366,17 +356,19 @@ class OperationOutputSpec(BaseModel):
             fragment_type=self.fragment_type,
             labels=[self.label],
         )
-    
+
     def __str__(self):
-        result = f"{self.fragment_type}{"*" if self.multiple else ""}{{"
+        result = f"{self.fragment_type}{'*' if self.multiple else ''}{{"
         if self.label:
             result += f"{self.label}"
         return result + "}"
+
 
 class OperationSpec(BaseModel):
     """
     A class representing an operation function.
     """
+
     model_config = ConfigDict(extra="forbid")
 
     name: str = Field(..., description="Name of the operation function.")
@@ -389,27 +381,31 @@ class OperationSpec(BaseModel):
 
     def __str__(self):
         return f"{self.name}({self.input_specs}) -> {self.output_spec}"
+
+
 #
 # Operations Log
 #
+
 
 class OperationsLogEntry(BaseModel):
     """
     A class representing an entry in the operations log.
     """
+
     model_config = ConfigDict(extra="forbid")
 
     operation_name: str = Field(..., description="The performed operation.")
     input_refs: set[str] = Field(..., description="Reference to the input fragments.")
     output_refs: list[str] = Field(..., description="Reference to the output fragments.")
+    duration_ns: int = Field(description="Duration of the operation in nanoseconds.")
+
 
 class OperationsLog(BaseModel):
     """
     A class representing the operations log.
     """
+
     model_config = ConfigDict(extra="forbid")
 
-    entries: list[OperationsLogEntry] = Field(
-        default_factory=list, description="List of operations in the log."
-    )
-
+    entries: list[OperationsLogEntry] = Field(default_factory=list, description="List of operations in the log.")

@@ -1,3 +1,5 @@
+import time 
+
 from rich.console import Console
 from rich.markup import escape
 
@@ -48,8 +50,10 @@ class IngestionRunner:
                 self._console.log(f"  Skip for {escape(str(input_fragment_ids))}...")
             else:
                 self._console.log(f"  Execute with {escape(str(input_fragment_ids))}...")
+                start_time = time.time_ns()
                 results = operation.func(*arguments)
-                self._process_operation_result(operation, input_fragment_ids, results)
+                end_time = time.time_ns()
+                self._process_operation_result(operation, input_fragment_ids, results, end_time - start_time)
 
     def _skip_operation(self, input_fragment_ids: set[str], operation: OperationSpec) -> bool:        
         return len(
@@ -80,7 +84,7 @@ class IngestionRunner:
         return call_arguments
 
     def _process_operation_result(
-        self, operation: OperationSpec, input_fragment_ids: set[str], result: Fragment | list[Fragment]
+        self, operation: OperationSpec, input_fragment_ids: set[str], result: Fragment | list[Fragment], duration_ns: int
     ):
         if result is None:
             raise OperationError(
@@ -104,6 +108,7 @@ class IngestionRunner:
                 operation_name=operation.name,
                 input_refs=input_fragment_ids, 
                 output_refs=[fragment.id for fragment in results],
+                duration_ns=duration_ns,
             )
         )
 
