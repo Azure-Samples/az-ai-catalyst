@@ -13,3 +13,6 @@ wheels/
 
 # Ingore MLFlow local tracking directory
 mlruns
+
+# ignore project examples
+examples/proj_*
