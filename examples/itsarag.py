@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-import os
 import re
 from pathlib import Path
 from typing import Annotated, Any
@@ -32,7 +31,6 @@ import az_ai.ingestion
 from az_ai.ingestion import Chunk, Document, DocumentIntelligenceResult, Fragment, ImageFragment
 from az_ai.ingestion.repository import LocalRepository
 from az_ai.ingestion.settings import IngestionSettings
-
 
 # logging.basicConfig(level=logging.INFO)
 # logging.getLogger("azure.core").setLevel(logging.WARNING)
@@ -67,7 +65,7 @@ project = AIProjectClient.from_connection_string(
 )
 
 document_intelligence_client = DocumentIntelligenceClient(
-    endpoint=settings.azure_openai_endpoint,
+    endpoint=settings.azure_ai_endpoint,
     api_version="2024-11-30",
     credential=credential,
 )
@@ -183,6 +181,9 @@ class FigureDescription(Fragment):
 
 class MarkdownFragment(Fragment):
     pass
+
+
+
 
 @ingestion.operation()
 @mlflow.trace(span_type=SpanType.CHAIN)

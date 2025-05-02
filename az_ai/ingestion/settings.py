@@ -14,7 +14,7 @@ from pydantic_settings import (
 
 class IngestionSettings(BaseSettings):
     azure_ai_project_connection_string: str
-    azure_openai_endpoint: str = Field(validation_alias=AliasChoices("openai_endpoint", "azure_openai_endpoint"))
+    azure_ai_endpoint: str = Field(validation_alias=AliasChoices("azure_ai_endpoint", "azure_openai_endpoint"))
     azure_openai_api_version: str = Field(validation_alias=AliasChoices("openai_api_version", "azure_openai_api_version"))
     azure_ai_search_endpoint: str = Field(validation_alias=AliasChoices("search_endpoint", "azure_ai_search_endpoint"))
 

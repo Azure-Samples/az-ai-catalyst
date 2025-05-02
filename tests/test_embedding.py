@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import pytest
 
 from az_ai.ingestion import Chunk, Fragment
@@ -22,7 +24,7 @@ def chunk():
 
 
 def test_chunk_human_file_name(chunk):
-    assert chunk.human_file_name() == "target.md"
+    assert chunk.human_file_name() == Path("target.md")
 
 
 def test_chunk_initialization(chunk):

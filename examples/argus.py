@@ -47,7 +47,7 @@ project = AIProjectClient.from_connection_string(
 )
 
 document_intelligence_client = DocumentIntelligenceClient(
-    endpoint=settings.azure_openai_endpoint,
+    endpoint=settings.azure_ai_endpoint,
     api_version="2024-11-30",
     credential=credential,
 )

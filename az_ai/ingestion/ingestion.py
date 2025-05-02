@@ -32,6 +32,14 @@ class Ingestion:
         self.repository = repository
         self._operations: dict[str, OperationSpec] = {}
 
+    def __call__(self, *args, **kwargs):
+        runner = IngestionRunner(self, self.repository)
+
+        runner.run(*args, **kwargs)
+
+        if "search_client" in kwargs:
+            self.update_index(kwargs["search_client"])
+
     def operation(self) -> Callable[[CommandFunctionType], CommandFunctionType]:
         def decorator(func: CommandFunctionType) -> CommandFunctionType:
             logger.debug("Registering operation function %s...", func.__name__)
@@ -45,14 +53,6 @@ class Ingestion:
         Get the list of registered operations.
         """
         return self._operations
-
-    def __call__(self, *args, **kwargs):
-        runner = IngestionRunner(self, self.repository)
-
-        runner.run(*args, **kwargs)
-
-        if "search_client" in kwargs:
-            self.update_index(kwargs["search_client"])
 
     def update_index(self, search_client):
         """
@@ -125,8 +125,10 @@ class Ingestion:
         if not file.exists():
             raise OperationError(f"File {file} does not exist.")
 
-        if self.repository.find(FragmentSelector(fragment_type="Document", labels=["start"])):
-            return
+        for document in self.repository.find(FragmentSelector(fragment_type="Document"), with_content=False):
+            if document.metadata["file_name"] == file.name:
+                print(f"File {file.name} already added. Ignoring.")
+                return
 
         if mime_type is None:
             mime_type, _ = mimetypes.guess_type(str(file))

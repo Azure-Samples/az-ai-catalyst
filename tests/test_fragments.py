@@ -1,5 +1,7 @@
 import pytest
 
+from pathlib import Path
+
 from az_ai.ingestion import Document, Fragment
 
 
@@ -33,7 +35,7 @@ def test_fragment_human_file_name_with_elements(
         human_index=human_index,
         metadata={},
     )
-    assert fragment.human_file_name() == expected
+    assert fragment.human_file_name() == Path(expected)
 
 
 def test_fragment_initialization(fragment):

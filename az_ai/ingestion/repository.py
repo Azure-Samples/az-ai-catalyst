@@ -27,7 +27,7 @@ class Repository(ABC):
         pass
 
     @abstractmethod
-    def find(self, spec: FragmentSelector = None) -> list[Fragment]:
+    def find(self, selector: FragmentSelector = None, with_content: bool = True) -> list[Fragment]:
         """
         Get all fragments matching the given spec.
         """
@@ -40,13 +40,13 @@ class Repository(ABC):
         """
         pass
 
-
     @abstractmethod
     def human_content_path(self, fragment: Fragment) -> Path:
         """
         Get the human-readable path for the given fragment content.
         """
         pass
+
 
 class FragmentNotFoundError(Exception):
     """Exception raised when a fragment is not found in the repository."""
@@ -66,6 +66,10 @@ class FragmentContentNotFoundError(Exception):
     pass
 
 
+CONTENT_PREFIX = "_content"
+FRAGMENTS_PREFIX = "_fragments"
+HUMAN_PREFIX = "_human"
+
 class LocalRepository(Repository):
     def __init__(self, path: Path = None):
         """
@@ -74,9 +78,9 @@ class LocalRepository(Repository):
         if path is None:
             raise ValueError("Path must be provided.")
         self._path = path
-        self._contents_path = path / "_content"
-        self._fragments_path = path / "_fragments"
-        self._human_path = path / "_human"
+        self._contents_path = path / CONTENT_PREFIX
+        self._fragments_path = path / FRAGMENTS_PREFIX
+        self._human_path = path / HUMAN_PREFIX
         self._operations_log_path = path / "_operations_log.json"
         self._contents_path.mkdir(parents=True, exist_ok=True)
         self._fragments_path.mkdir(parents=True, exist_ok=True)
@@ -127,7 +131,7 @@ class LocalRepository(Repository):
 
         return fragment
 
-    def find(self, selector: FragmentSelector = None) -> list[Fragment]:
+    def find(self, selector: FragmentSelector = None, with_content: bool = True) -> list[Fragment]:
         """
         Get all fragments matching the given spec.
         """
@@ -138,11 +142,10 @@ class LocalRepository(Repository):
         for fragment_path in self._fragments_path.glob("*.json"):
             fragment = Fragment.from_json(fragment_path.read_text())
             if selector is None or selector.matches(fragment):
-                # call self.get to ensure content is loaded
-                fragments.append(self.get(fragment.id))
+                fragments.append(self.get(fragment.id) if with_content else fragment)
 
         return fragments
-    
+
     def get_human_path(self, fragment: Fragment) -> Path:
         """
         Get the human-readable path for the given fragment.
@@ -157,9 +160,7 @@ class LocalRepository(Repository):
         log.entries.append(operations_log_entry)
         self._write_log(log)
 
-    def find_operations_log_entry(
-        self, operation_name: str = None, input_fragment_refs: set[str] = None
-    ):
+    def find_operations_log_entry(self, operation_name: str = None, input_fragment_refs: set[str] = None):
         """
         Find an operation log entry by operation_name and/or input_fragment_ref
         """
@@ -197,7 +198,7 @@ class LocalRepository(Repository):
         """
         Get the human-readable path for the given fragment content.
         """
-        return self._human_path / fragment.human_file_name()
+        return self._human_path / CONTENT_PREFIX / fragment.human_file_name()
 
     def _create_human_content_link(self, fragment: Fragment, content_path: Path):
         """
@@ -208,19 +209,27 @@ class LocalRepository(Repository):
             raise DuplicateFragmentError(f"Fragment {fragment.id} human content name already exists.")
         if not human_path.parent.exists():
             human_path.parent.mkdir(parents=True, exist_ok=True)
-        human_path.symlink_to(content_path)
+        human_path.symlink_to(
+            Path("/".join([".." for i in range(len(fragment.human_file_name().parents) + 1)]))
+            / CONTENT_PREFIX
+            / content_path.name
+        )
 
     def _create_human_fragment_link(self, fragment: Fragment, fragment_path: Path):
         """
         Create a human-readable link for the given fragment.
         """
-        human_path = self._human_path / "fragments" / fragment.human_file_name()
+        human_path = self._human_path / FRAGMENTS_PREFIX / fragment.human_file_name()
         human_path = human_path.with_suffix(".json")
         if human_path.exists():
             raise DuplicateFragmentError(f"Fragment {fragment.id} human fragment name already exists.")
         if not human_path.parent.exists():
             human_path.parent.mkdir(parents=True, exist_ok=True)
-        human_path.symlink_to(fragment_path)
+        human_path.symlink_to(
+            Path("/".join([".." for i in range(len(fragment.human_file_name().parents) + 1)]))
+            / FRAGMENTS_PREFIX
+            / fragment_path.name
+        )
 
     def _get_content_from_url(self, fragment: Fragment) -> bytes:
         """

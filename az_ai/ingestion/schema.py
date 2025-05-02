@@ -1,6 +1,7 @@
 import base64
 import json
 import mimetypes
+from pathlib import Path
 from collections.abc import Callable
 from io import BytesIO
 from typing import (
@@ -63,11 +64,10 @@ class Fragment(BaseModel):
         description="Binary content associated to this field (not serialized)",
     )
 
-    def human_file_name(self) -> str:
+    def human_file_name(self) -> Path:
         suffix = mimetypes.guess_extension(self.mime_type)
         index_suffix = f"_{self.human_index:0>3}" if self.human_index is not None else ""
-        return "/".join(self.parent_names + [f"{self.label}{index_suffix}{suffix}"])
-        
+        return Path("/".join(self.parent_names + [f"{self.label}{index_suffix}{suffix}"]))        
 
     def content_as_str(self, encoding="utf-8") -> str:
         """
@@ -200,9 +200,9 @@ class Document(Fragment):
         description="URL for the content of this document",
     )
 
-    def human_file_name(self, *args, **kwargs) -> str:
+    def human_file_name(self, *args, **kwargs) -> Path:
         if "file_name" in self.metadata:
-             return self.metadata["file_name"]
+             return Path(self.metadata["file_name"])
         else:
             return super().human_file_name(*args, **kwargs)
 

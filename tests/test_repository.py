@@ -41,7 +41,25 @@ def repository(tmpdir, fragment, document):
 
     repository.store(fragment)
     repository.store(document)
+
     return repository
+
+
+def test_human_file_links(empty_repository, document, fragment):
+    document.content = b"DUMMY DOCUMENT CONTENT"
+    empty_repository.store(document)
+
+    human_fragment_root = empty_repository.human_path() / "_fragments"
+    human_content_root = empty_repository.human_path() / "_content"
+
+    assert (human_content_root / document.human_file_name()).resolve().exists()
+    assert (human_fragment_root / document.human_file_name().with_suffix(".json")).resolve().exists()
+
+    fragment.content = b"DUMMY FRAGMENT CONTENT"
+    empty_repository.store(fragment)
+
+    assert (human_content_root / fragment.human_file_name()).resolve().exists()
+    assert (human_fragment_root / fragment.human_file_name()).with_suffix(".json").resolve().exists()
 
 
 def test_store(empty_repository, fragment):
@@ -92,8 +110,8 @@ def test_find_all(repository, fragment, document):
     for fragment in retrieved_fragments:
         fragment.content_ref = None
         fragment.content = None
-    assert fragment in retrieved_fragments 
-    assert document in retrieved_fragments 
+    assert fragment in retrieved_fragments
+    assert document in retrieved_fragments
 
 
 def test_fragment_not_found(repository):
@@ -134,9 +152,7 @@ def test_document_content_from_content_url(empty_repository, document):
 
 
 def test_add_operations_log_entry(empty_repository):
-    entry1 = OperationsLogEntry(
-        operation_name="operation_name1", input_refs=["foo"], output_refs=["bar", "baz"]
-    )
+    entry1 = OperationsLogEntry(operation_name="operation_name1", input_refs=["foo"], output_refs=["bar", "baz"])
     entry2 = OperationsLogEntry(
         operation_name="operation_name2",
         input_refs=["bar"],
@@ -154,24 +170,16 @@ def test_add_operations_log_entry(empty_repository):
     entries = empty_repository.find_operations_log_entry()
     assert entries == [entry1, entry2, entry3]
 
-    entries = empty_repository.find_operations_log_entry(
-        operation_name="operation_name1"
-    )
+    entries = empty_repository.find_operations_log_entry(operation_name="operation_name1")
     assert entries == [entry1]
 
-    entries = empty_repository.find_operations_log_entry(
-        operation_name="operation_name2"
-    )
+    entries = empty_repository.find_operations_log_entry(operation_name="operation_name2")
     assert entries == [entry2, entry3]
 
-    entries = empty_repository.find_operations_log_entry(
-        operation_name="operation_name2", input_fragment_refs=["bar"]
-    )
+    entries = empty_repository.find_operations_log_entry(operation_name="operation_name2", input_fragment_refs=["bar"])
     assert entries == [entry2]
 
-    entries = empty_repository.find_operations_log_entry(
-        operation_name="operation_name2", input_fragment_refs=["baz"]
-    )
+    entries = empty_repository.find_operations_log_entry(operation_name="operation_name2", input_fragment_refs=["baz"])
     assert entries == [entry3]
 
     entries = empty_repository.find_operations_log_entry(operation_name="does_not_exist")

@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import pytest
 
 from az_ai.ingestion import Document, Fragment
@@ -20,7 +22,7 @@ def document():
 
 
 def test_document_human_file_name(document):
-    assert document.human_file_name() == "test.pdf"
+    assert document.human_file_name() == Path("test.pdf")
 
 
 def test_document_initialization(document):
