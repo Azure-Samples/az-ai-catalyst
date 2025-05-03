@@ -26,7 +26,6 @@ from az_ai.ingestion.schema import FragmentSelector
 class ArgusSettings(IngestionSettings):
     model_name: str = "gpt-4.1-2025-04-14"
     temperature: float = 0.0
-    repository_path: Path = Path("/tmp/argus_ingestion")
 
     def as_params(self) -> dict[str, Any]:
         return {
@@ -35,7 +34,7 @@ class ArgusSettings(IngestionSettings):
         }
 
 
-settings = ArgusSettings()
+settings = ArgusSettings(repository_path="/tmp/argus_ingestion")
 
 #
 # Initialize Azure AI Foundry Services we will need
@@ -61,9 +60,7 @@ azure_openai_client = project.inference.get_azure_openai_client(
 # Ingestion workflow
 #
 
-ingestion = az_ai.ingestion.Ingestion(
-    repository=LocalRepository(path=settings.repository_path),
-)
+ingestion = az_ai.ingestion.Ingestion(settings=settings)
 
 
 class Summary(Fragment):

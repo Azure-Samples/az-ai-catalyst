@@ -43,7 +43,6 @@ class ItsaragSettings(IngestionSettings):
     index_name: str = "itsarag"
     temperature: float = 0.0
     max_tokens: int = 2000
-    repository_path: Path = Path("/tmp/itsarag_ingestion")
 
     def as_params(self) -> dict[str, Any]:
         return {
@@ -53,7 +52,7 @@ class ItsaragSettings(IngestionSettings):
         }
     
 
-settings = ItsaragSettings()
+settings = ItsaragSettings(repository_path="/tmp/itsarag_ingestion")
 
 #
 # Initialize Azure AI Foundry Services we will need
@@ -167,9 +166,7 @@ search_client = SearchClient(
 # Ingestion workflow 
 #
 
-ingestion = az_ai.ingestion.Ingestion(
-    repository=LocalRepository(path=settings.repository_path),
-)
+ingestion = az_ai.ingestion.Ingestion(settings=settings)
 
 class Figure(ImageFragment):
     pass

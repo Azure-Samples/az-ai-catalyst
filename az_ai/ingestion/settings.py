@@ -1,3 +1,4 @@
+from pathlib import Path
 
 from pydantic import (
     AliasChoices,
@@ -13,6 +14,8 @@ from pydantic_settings import (
 # TODO: implement load_azd_env
 
 class IngestionSettings(BaseSettings):
+    repository_path: Path
+
     azure_ai_project_connection_string: str
     azure_ai_endpoint: str = Field(validation_alias=AliasChoices("azure_ai_endpoint", "azure_openai_endpoint"))
     azure_openai_api_version: str = Field(validation_alias=AliasChoices("openai_api_version", "azure_openai_api_version"))

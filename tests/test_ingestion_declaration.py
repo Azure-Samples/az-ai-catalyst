@@ -5,11 +5,12 @@ import pytest
 import az_ai.ingestion
 from az_ai.ingestion import Document, Fragment
 from az_ai.ingestion.ingestion import OperationError
+from az_ai.ingestion.settings import IngestionSettings
 
 
 @pytest.fixture
-def ingestion():
-    return az_ai.ingestion.Ingestion()
+def ingestion(tmpdir):
+    return az_ai.ingestion.Ingestion(settings=IngestionSettings(repository_path=str(tmpdir)))
 
 
 def test_ingestion_initialization(ingestion):

@@ -12,7 +12,7 @@ from typing import (
     get_type_hints,
 )
 
-from az_ai.ingestion.repository import Repository
+from az_ai.ingestion.repository import LocalRepository, Repository
 from az_ai.ingestion.runner import IngestionRunner, OperationError
 from az_ai.ingestion.schema import (
     CommandFunctionType,
@@ -23,13 +23,15 @@ from az_ai.ingestion.schema import (
     OperationOutputSpec,
     OperationSpec,
 )
+from az_ai.ingestion.settings import IngestionSettings
 
 logger = logging.getLogger(__name__)
 
 
 class Ingestion:
-    def __init__(self, repository: Repository = None):
-        self.repository = repository
+    def __init__(self, repository: Repository = None, settings: IngestionSettings = None):
+        self.settings = settings or IngestionSettings()
+        self.repository = repository or LocalRepository(path=self.settings.repository_path)
         self._operations: dict[str, OperationSpec] = {}
 
     def __call__(self, *args, **kwargs):

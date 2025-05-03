@@ -4,20 +4,12 @@ import pytest
 
 import az_ai.ingestion
 from az_ai.ingestion import Document, Fragment
+from az_ai.ingestion.settings import IngestionSettings
 
 
 @pytest.fixture
-def ingestion():
-    return az_ai.ingestion.Ingestion()
-
-
-
-
-
-
-
-
-    return ingestion
+def ingestion(tmpdir):
+    return az_ai.ingestion.Ingestion(settings=IngestionSettings(repository_path=str(tmpdir)))
 
 def test_document_operation(ingestion):
     @ingestion.operation()

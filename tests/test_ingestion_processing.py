@@ -4,18 +4,17 @@ from typing import Annotated
 import pytest
 
 from az_ai.ingestion import Document, Fragment, Ingestion, OperationError
+from az_ai.ingestion.settings import IngestionSettings
 from az_ai.ingestion.repository import LocalRepository
 from az_ai.ingestion.schema import FragmentSelector
 
 
 @pytest.fixture(scope="function")
-def empty_repository(tmpdir):
-    return LocalRepository(path=Path(tmpdir))
+def ingestion(tmpdir):
+    return Ingestion(settings=IngestionSettings(repository_path=Path(tmpdir)))
 
 @pytest.fixture(scope="function")
-def single_step_ingestion(empty_repository):
-    ingestion = Ingestion(repository=empty_repository)
-
+def single_step_ingestion(ingestion):
     @ingestion.operation()
     def simple(input: Document) -> Annotated[Fragment, "output_label"]:
         return Fragment(
@@ -26,9 +25,7 @@ def single_step_ingestion(empty_repository):
     return ingestion
 
 @pytest.fixture(scope="function")
-def two_step_ingestion(empty_repository):
-    ingestion = Ingestion(repository=empty_repository)
-
+def two_step_ingestion(ingestion):
     @ingestion.operation()
     def simple(input: Document) -> Annotated[Fragment, "output_label"]:
         return Fragment(
@@ -72,42 +69,41 @@ def repository(tmpdir, document, fragment):
 
 
 
-def test_single_ingestion(single_step_ingestion, empty_repository, document):
-    assert len(empty_repository.find()) == 0
-    empty_repository.store(document)
+def test_single_ingestion(single_step_ingestion, document):
+    assert len(single_step_ingestion.repository.find()) == 0
+    single_step_ingestion.repository.store(document)
 
     single_step_ingestion()
 
-    fragment = empty_repository.get("output_id")
+    fragment = single_step_ingestion.repository.get("output_id")
     assert fragment.id == "output_id"
     assert fragment.label == "output_label"
     assert fragment.metadata == document.metadata | { "extra_key": "extra_value" }
 
-    assert len(empty_repository.find()) == 2
+    assert len(single_step_ingestion.repository.find()) == 2
 
-def test_double_ingestion(two_step_ingestion, empty_repository, document):
-    assert len(empty_repository.find()) == 0
-    empty_repository.store(document)
+def test_double_ingestion(two_step_ingestion, document):
+    assert len(two_step_ingestion.repository.find()) == 0
+    two_step_ingestion.repository.store(document)
 
     two_step_ingestion.mermaid()
     two_step_ingestion()
 
-    fragment = empty_repository.get("output_id")
+    fragment = two_step_ingestion.repository.get("output_id")
     assert fragment.id == "output_id"
     assert fragment.label == "output_label"
     assert fragment.metadata == document.metadata | { "extra_key": "extra_value" }
 
-    fragment = empty_repository.get("second_id")
+    fragment = two_step_ingestion.repository.get("second_id")
     assert fragment.id == "second_id"
     assert fragment.label == "second_output_label"
     assert fragment.metadata == fragment.metadata | { "extra_key2": "extra_value2" }
 
-    assert len(empty_repository.find()) == 3
+    assert len(two_step_ingestion.repository.find()) == 3
 
 
-def test_return_is_compliant_with_signature(empty_repository, document):
-    ingestion = Ingestion(repository=empty_repository)
-    empty_repository.store(document)
+def test_return_is_compliant_with_signature(ingestion, document):
+    ingestion.repository.store(document)
     
     @ingestion.operation()
     def simple(input: Document) -> Annotated[Fragment, "expected_label"]:
@@ -123,10 +119,9 @@ def test_return_is_compliant_with_signature(empty_repository, document):
     assert "Non compliant Fragment returned" in str(excinfo.value)
 
 
-def test_processing_scope(empty_repository):
-    ingestion = Ingestion(repository=empty_repository)
-    doc1 = empty_repository.store(Document(label="doc1", parent_names=["doc1"]))
-    doc2 = empty_repository.store(Document(label="doc2", parent_names=["doc2"]))
+def test_processing_scope(ingestion):
+    doc1 = ingestion.repository.store(Document(label="doc1", parent_names=["doc1"]))
+    doc2 = ingestion.repository.store(Document(label="doc2", parent_names=["doc2"]))
 
     class Single(Fragment):
         pass
@@ -134,13 +129,13 @@ def test_processing_scope(empty_repository):
     class Multi(Fragment):
         pass
 
-    doc1_single = empty_repository.store(Single.with_source(doc1, label="doc1_single"))
-    doc1_multi1 = empty_repository.store(Multi.with_source(doc1, label="doc1_multi1"))
-    doc1_multi2 = empty_repository.store(Multi.with_source(doc1, label="doc1_multi2"))
+    doc1_single = ingestion.repository.store(Single.with_source(doc1, label="doc1_single"))
+    doc1_multi1 = ingestion.repository.store(Multi.with_source(doc1, label="doc1_multi1"))
+    doc1_multi2 = ingestion.repository.store(Multi.with_source(doc1, label="doc1_multi2"))
 
-    doc2_single = empty_repository.store(Single.with_source(doc2, label="doc2_single"))
-    doc2_multi1 = empty_repository.store(Multi.with_source(doc2, label="doc2_multi1"))
-    doc2_multi2 = empty_repository.store(Multi.with_source(doc2, label="doc2_multi2"))
+    doc2_single = ingestion.repository.store(Single.with_source(doc2, label="doc2_single"))
+    doc2_multi1 = ingestion.repository.store(Multi.with_source(doc2, label="doc2_multi1"))
+    doc2_multi2 = ingestion.repository.store(Multi.with_source(doc2, label="doc2_multi2"))
 
     @ingestion.operation()
     def op_same(
@@ -167,7 +162,7 @@ def test_processing_scope(empty_repository):
     
     ingestion()
 
-    outputs = empty_repository.find(FragmentSelector(fragment_type="Fragment", labels=["output_same"]))
+    outputs = ingestion.repository.find(FragmentSelector(fragment_type="Fragment", labels=["output_same"]))
 
     assert len(outputs) == 2
     output1 = next(output for output in outputs if output.source_document_ref() == doc1.id)
@@ -182,7 +177,7 @@ def test_processing_scope(empty_repository):
     assert output2.metadata["multi1"] == doc2_multi1.id
     assert output2.metadata["multi2"] == doc2_multi2.id
 
-    outputs = empty_repository.find(FragmentSelector(fragment_type="Fragment", labels=["output_all"]))
+    outputs = ingestion.repository.find(FragmentSelector(fragment_type="Fragment", labels=["output_all"]))
 
     assert len(outputs) == 2
     output1 = next(output for output in outputs if output.source_document_ref() == doc1.id)
