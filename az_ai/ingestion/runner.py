@@ -42,7 +42,7 @@ class IngestionRunner:
         self._console.log(f"Running {escape(str(operation))}: ")
         inputs = [self.repository.find(input.selector()) for input in operation.input_specs]
 
-        call_arguments = self._create_call_arguments(operation, inputs)
+        call_arguments = self._create_call_arguments(operation, inputs, operation.scope == "same")
 
         for arguments in call_arguments:
             input_fragment_ids = self._input_fragment_ids_set(arguments)
@@ -55,36 +55,77 @@ class IngestionRunner:
                 end_time = time.time_ns()
                 self._process_operation_result(operation, input_fragment_ids, results, end_time - start_time)
 
-    def _skip_operation(self, input_fragment_ids: set[str], operation: OperationSpec) -> bool:        
-        return len(
+    def _skip_operation(self, input_fragment_ids: set[str], operation: OperationSpec) -> bool:
+        return (
+            len(
                 self.repository.find_operations_log_entry(
                     operation_name=operation.name,
                     input_fragment_refs=input_fragment_ids,
                 )
-            ) > 0
+            )
+            > 0
+        )
 
-    def _create_call_arguments(self, operation: OperationSpec, inputs: list[list[Fragment]]) -> list[list[Fragment] | Fragment]:
+    def _create_call_arguments(
+        self, operation: OperationSpec, inputs: list[list[Fragment]], same_scope
+    ) -> list[list[list[Fragment] | Fragment]]:
         """
-        Create the call arguments for calling the operation's function. Take into account if
-        input parameters are multiple or not. Use inputs as a list of filtered argument
-        values for each argument. This function will return a list of arguments to be passed
-        to the operation function for each call of the function.
+        Create argument lists for operation function calls based on input fragments.
+        
+        When same_scope is True, arguments are grouped by source document reference,
+        ensuring that operation functions only receive fragments from the same source.
+        Otherwise, all input combinations are considered.
+
+        For each input specification:
+        - Single inputs: Each matching fragment generates a separate argument set.
+        - Multiple inputs (input_spec.multiple=True): The entire list of matching fragments
+          is passed as a single argument.
+
+        Args:
+            operation: The operation specification containing input requirements.
+            inputs: Lists of fragments matching each input specification.
+            same_scope: If True, only combine fragments from the same source document.
+
+        Returns:
+            A list of argument lists ready to be passed to the operation function.
         """
-        call_arguments = [[]]
+        source_refs = set()
+        if same_scope:
+            for input_list in inputs:
+                fragments = input_list if isinstance(input_list, list) else [input_list]
+                source_refs.update(fragment.source_document_ref() for fragment in fragments)
+        else:
+            source_refs = {"placeholder"}
+
+        call_arguments_by_source = {source_ref: [[]] for source_ref in source_refs}
+        
         for input_spec, fragments in zip(operation.input_specs, inputs, strict=True):
-            if input_spec.multiple:
-                # current input is multiple: we append the fragments for that input to every existing call in the list
-                for arguments in call_arguments:
-                    arguments.append(fragments)
-            else:
-                # current input is single: we need to create a new call for each fragment filtered for this input
-                call_arguments = [
-                    previous_args.copy() + [fragment] for previous_args in call_arguments for fragment in fragments
-                ]
-        return call_arguments
+            for source_ref in source_refs:
+                current_args = call_arguments_by_source[source_ref]
+                if same_scope:
+                    matching_fragments = [f for f in fragments if f.source_document_ref() == source_ref]
+                else:
+                    matching_fragments = fragments
+                
+                if input_spec.multiple:
+                    # For multiple inputs, append the list of matching fragments to each argument set
+                    for args in current_args:
+                        args.append(matching_fragments)
+                else:
+                    # For single inputs, create a new argument set for each matching fragment
+                    call_arguments_by_source[source_ref] = [
+                        args + [fragment] 
+                        for args in current_args 
+                        for fragment in matching_fragments
+                    ]
+        return [arg for args_list in call_arguments_by_source.values() for arg in args_list]
 
     def _process_operation_result(
-        self, operation: OperationSpec, input_fragment_ids: set[str], result: Fragment | list[Fragment], duration_ns: int
+        self,
+        operation: OperationSpec,
+        input_fragment_ids: set[str],
+        result: Fragment | list[Fragment],
+        duration_ns: int,
     ):
         if result is None:
             raise OperationError(
@@ -106,7 +147,7 @@ class IngestionRunner:
         self.repository.add_operations_log_entry(
             OperationsLogEntry(
                 operation_name=operation.name,
-                input_refs=input_fragment_ids, 
+                input_refs=input_fragment_ids,
                 output_refs=[fragment.id for fragment in results],
                 duration_ns=duration_ns,
             )
@@ -114,7 +155,7 @@ class IngestionRunner:
 
     def _input_fragment_ids_set(self, arguments: list[list[Fragment] | Fragment]) -> set[str]:
         """
-        Flatten the input arguments for the operation. 
+        Flatten the input arguments for the operation.
         """
         input_fragments = []
         for arg in arguments:

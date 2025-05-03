@@ -181,7 +181,6 @@ class LocalRepository(Repository):
         self._create_human_fragment_link(fragment, fragment_path)
         self._write_index(self._read_index().add(fragment))
 
-
         return fragment
 
     def update(self, fragment: Fragment) -> Fragment:
@@ -295,7 +294,7 @@ class LocalRepository(Repository):
         human_path = self._human_path / FRAGMENTS_PREFIX / fragment.human_file_name()
         human_path = human_path.with_suffix(".json")
         if human_path.exists():
-            raise DuplicateFragmentError(f"Fragment {fragment.id} human fragment name already exists.")
+            raise DuplicateFragmentError(f"Fragment {fragment.id} human fragment name already exists: {human_path}")
         if not human_path.parent.exists():
             human_path.parent.mkdir(parents=True, exist_ok=True)
         relative_target = (

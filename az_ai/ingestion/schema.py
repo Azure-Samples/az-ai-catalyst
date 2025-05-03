@@ -79,6 +79,9 @@ class Fragment(BaseModel):
         description="Relationships between fragments.",
     )
 
+    def source_document_ref(self):
+        return self.relationships.get(FragmentRelationships.SOURCE_DOCUMENT)
+
     def human_file_name(self) -> Path:
         suffix = mimetypes.guess_extension(self.mime_type)
         index_suffix = f"_{self.human_index:0>3}" if self.human_index is not None else ""
@@ -225,6 +228,10 @@ class Document(Fragment):
             return Path(self.metadata["file_name"])
         else:
             return super().human_file_name(*args, **kwargs)
+        
+    def source_document_ref(self):
+        # A document is it's own source.
+        return self.id
 
 
 class Chunk(Fragment):
@@ -402,6 +409,11 @@ class OperationSpec(BaseModel):
     input_specs: list[OperationInputSpec]
     output_spec: OperationOutputSpec
     func: CommandFunctionType = Field(..., description="The operation function.")
+    scope: str = Field(
+        default="same",
+        description="Scope of the operation function. Can be 'same' or 'all'.",
+        pattern="^(same|all)$",
+    )
 
     def __call__(self, *args, **kwargs):
         return self.func(*args, **kwargs)

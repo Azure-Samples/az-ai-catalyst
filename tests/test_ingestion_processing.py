@@ -5,6 +5,7 @@ import pytest
 
 from az_ai.ingestion import Document, Fragment, Ingestion, OperationError
 from az_ai.ingestion.repository import LocalRepository
+from az_ai.ingestion.schema import FragmentSelector
 
 
 @pytest.fixture(scope="function")
@@ -120,3 +121,76 @@ def test_return_is_compliant_with_signature(empty_repository, document):
         ingestion()
 
     assert "Non compliant Fragment returned" in str(excinfo.value)
+
+
+def test_processing_scope(empty_repository):
+    ingestion = Ingestion(repository=empty_repository)
+    doc1 = empty_repository.store(Document(label="doc1", parent_names=["doc1"]))
+    doc2 = empty_repository.store(Document(label="doc2", parent_names=["doc2"]))
+
+    class Single(Fragment):
+        pass
+
+    class Multi(Fragment):
+        pass
+
+    doc1_single = empty_repository.store(Single.with_source(doc1, label="doc1_single"))
+    doc1_multi1 = empty_repository.store(Multi.with_source(doc1, label="doc1_multi1"))
+    doc1_multi2 = empty_repository.store(Multi.with_source(doc1, label="doc1_multi2"))
+
+    doc2_single = empty_repository.store(Single.with_source(doc2, label="doc2_single"))
+    doc2_multi1 = empty_repository.store(Multi.with_source(doc2, label="doc2_multi1"))
+    doc2_multi2 = empty_repository.store(Multi.with_source(doc2, label="doc2_multi2"))
+
+    @ingestion.operation()
+    def op_same(
+        single: Single,
+        multi: list[Multi],
+    ) -> Annotated[Fragment, "output_same"]:
+        return Fragment.with_source(single, label="output_same", update_metadata={
+            "multi_size": len(multi),
+            "single": single.id,
+            "multi1": multi[0].id,
+            "multi2": multi[1].id,
+        })
+
+    @ingestion.operation(scope="all")
+    def op_all(
+        single: Single,
+        multi: list[Multi],
+    ) -> Annotated[Fragment, "output_all"]:
+        return Fragment.with_source(single, label="output_all", update_metadata={
+            "multi_size": len(multi),
+            "single": single.id,
+            "multi": set((multi[0].id, multi[1].id, multi[2].id, multi[3].id)),
+        })
+    
+    ingestion()
+
+    outputs = empty_repository.find(FragmentSelector(fragment_type="Fragment", labels=["output_same"]))
+
+    assert len(outputs) == 2
+    output1 = next(output for output in outputs if output.source_document_ref() == doc1.id)
+    output2 = next(output for output in outputs if output.source_document_ref() == doc2.id)
+    assert output1.metadata["multi_size"] == 2
+    assert output1.metadata["single"] == doc1_single.id
+    assert output1.metadata["multi1"] == doc1_multi1.id
+    assert output1.metadata["multi2"] == doc1_multi2.id
+
+    assert output2.metadata["multi_size"] == 2
+    assert output2.metadata["single"] == doc2_single.id
+    assert output2.metadata["multi1"] == doc2_multi1.id
+    assert output2.metadata["multi2"] == doc2_multi2.id
+
+    outputs = empty_repository.find(FragmentSelector(fragment_type="Fragment", labels=["output_all"]))
+
+    assert len(outputs) == 2
+    output1 = next(output for output in outputs if output.source_document_ref() == doc1.id)
+    output2 = next(output for output in outputs if output.source_document_ref() == doc2.id)
+    assert output1.metadata["multi_size"] == 4
+    assert output1.metadata["single"] == doc1_single.id
+    assert set(output1.metadata["multi"]) == set((doc1_multi1.id, doc1_multi2.id, doc2_multi1.id, doc2_multi2.id))
+
+    assert output2.metadata["multi_size"] == 4
+    assert output2.metadata["single"] == doc2_single.id
+    assert set(output2.metadata["multi"]) == set((doc1_multi1.id, doc1_multi2.id, doc2_multi1.id, doc2_multi2.id))

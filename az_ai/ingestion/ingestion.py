@@ -40,10 +40,20 @@ class Ingestion:
         if "search_client" in kwargs:
             self.update_index(kwargs["search_client"])
 
-    def operation(self) -> Callable[[CommandFunctionType], CommandFunctionType]:
+    def operation(self, scope="same") -> Callable[[CommandFunctionType], CommandFunctionType]:
+        """
+        Decorator to register an operation function.
+
+        Args:
+            scope (str): The scope of the operation. Can be "same" or "all". Default is "same".
+                "same" means the operation will be executed once for each batch of fragments with 
+                the same source document.
+        """
         def decorator(func: CommandFunctionType) -> CommandFunctionType:
             logger.debug("Registering operation function %s...", func.__name__)
-            self._operations[func.__name__] = self._parse_signature(func)
+            operation_spec = self._parse_signature(func, scope)
+            operation_spec.scope = scope
+            self._operations[func.__name__] = operation_spec
             return func
 
         return decorator
@@ -150,7 +160,7 @@ class Ingestion:
         self.repository.store(document)
         return document
 
-    def _parse_signature(self, func: CommandFunctionType) -> OperationSpec:
+    def _parse_signature(self, func: CommandFunctionType, scope: str) -> OperationSpec:
         """
         Parse the signature of the function to extract its parameters and return type
         """
