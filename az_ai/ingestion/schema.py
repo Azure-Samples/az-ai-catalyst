@@ -27,6 +27,18 @@ from pydantic import (
 from pydantic.json_schema import JsonSchemaValue
 from pydantic_core import CoreSchema
 
+from enum import Enum, auto
+
+
+
+
+class FragmentRelationships(str, Enum):
+    """
+    Enum representing the type of relationship between fragments.
+    """
+    SOURCE_DOCUMENT = auto()
+    SOURCE = auto()
+
 
 class Fragment(BaseModel):
     """
@@ -40,19 +52,6 @@ class Fragment(BaseModel):
         description="Unique identifier for the fragment.",
     )
     label: str = Field(..., description="Label for the fragment.")
-    parent_names: list[str] = Field(
-        default_factory=list,
-        description="List of human-readable parent names for the fragment.",
-    )
-    human_index: int | None = Field(
-        default=None,
-        description="Index of the fragment when multiple fragments with the same label and parent_names are generated.",
-    )
-    metadata: dict[str, Any] = Field(..., default_factory=dict, description="Metadata associated with the fragment.")
-    content_ref: str | None = Field(
-        default=None,
-        description="Reference to the content of the fragment.",
-    )
     mime_type: str = Field(
         default="application/octet-stream",
         description="MIME type of the fragment.",
@@ -61,6 +60,23 @@ class Fragment(BaseModel):
         default=None,
         exclude=True,
         description="Binary content associated to this field (not serialized)",
+    )
+    metadata: dict[str, Any] = Field(..., default_factory=dict, description="Metadata associated with the fragment.")
+    content_ref: str | None = Field(
+        default=None,
+        description="Reference to the content of the fragment.",
+    )
+    parent_names: list[str] = Field(
+        default_factory=list,
+        description="List of human-readable parent names for the fragment.",
+    )
+    human_index: int | None = Field(
+        default=None,
+        description="Index of the fragment when multiple fragments with the same label and parent_names are generated.",
+    )
+    relationships: dict[FragmentRelationships, str | list[str]] = Field(
+        default_factory=dict,
+        description="Relationships between fragments.",
     )
 
     def human_file_name(self) -> Path:
@@ -94,11 +110,12 @@ class Fragment(BaseModel):
         return f"{self.id}:{self.__class__.__name__}[{self.label}, {self.human_file_name()}]"
 
     @classmethod
-    def create_from(cls, fragment, **kwargs: dict[str, Any]) -> "Fragment":
+    def with_source(cls, fragment, **kwargs: dict[str, Any]) -> "Fragment":
         data = dict(fragment.dict())
-        # Do not copy those 3 fields
+        # Do not copy those  fields
         data.pop("id", None)
         data.pop("content_ref", None)
+
         for key in set(data.keys()):
             if key not in cls.model_fields:
                 data.pop(key)
@@ -114,7 +131,17 @@ class Fragment(BaseModel):
 
             else:
                 data["metadata"] = extra_metadata
-        return cls(**data)
+
+        new_fragment = cls(**data)
+        if isinstance(fragment, Document):
+            new_fragment.relationships[FragmentRelationships.SOURCE_DOCUMENT] = fragment.id
+        else:
+            if new_fragment.relationships.get(FragmentRelationships.SOURCE_DOCUMENT) is None:
+                raise ValueError(f"Source document relationship is mandatory in source fragment: {fragment}")
+            if new_fragment.relationships.get(FragmentRelationships.SOURCE) is None:
+                raise ValueError(f"Source relationship is mandatory in fragment: {fragment}")
+        new_fragment.relationships[FragmentRelationships.SOURCE] = fragment.id
+        return new_fragment
 
     # TODO: remove?
     @classmethod
@@ -245,8 +272,8 @@ class DocumentIntelligenceResult(Fragment):
             raise ValueError('No analyze result found in metadata["document_intelligence_result"]')
 
     @classmethod
-    def create_from_result(cls, source_fragment, label, analyze_result: AnalyzeResult):
-        return cls.create_from(
+    def with_source_result(cls, source_fragment, label, analyze_result: AnalyzeResult):
+        return cls.with_source(
             source_fragment,
             label=label,
             mime_type="text/markdown",

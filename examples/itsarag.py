@@ -205,7 +205,7 @@ def apply_document_intelligence(
         ],
         output_content_format=DocumentContentFormat.Markdown,
     )
-    return DocumentIntelligenceResult.create_from_result(
+    return DocumentIntelligenceResult.with_source_result(
         document,
         label="document_intelligence_result",
         analyze_result=poller.result(),
@@ -279,7 +279,7 @@ def describe_figure(
         max_tokens=settings.max_tokens,
     )
 
-    return FigureDescription.create_from(
+    return FigureDescription.with_source(
         image,
         content=extract_code_block(response.choices[0].message.content)[0],
         mime_type="text/markdown",
@@ -317,7 +317,7 @@ def split_markdown(
         if page_break_pattern.match(content):
             page_nb += 1
         fragments.append(
-            MarkdownFragment.create_from(
+            MarkdownFragment.with_source(
                 document_intelligence_result,
                 label="md_fragment",
                 content=content,
@@ -348,7 +348,7 @@ def embed(
         )
         embedding = response.data[0].embedding
         results.append(
-            Chunk.create_from(
+            Chunk.with_source(
                 fragment,
                 label="chunk",
                 human_index=index + 1,

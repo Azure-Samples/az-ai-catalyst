@@ -174,7 +174,7 @@ def apply_document_intelligence(
         ],
         output_content_format=DocumentContentFormat.Markdown,
     )
-    return DocumentIntelligenceResult.create_from_result(
+    return DocumentIntelligenceResult.with_source_result(
         document,
         label="document_intelligence_result",
         analyze_result=poller.result(),
@@ -204,7 +204,7 @@ def split_to_page_images(
         image = Image.open(io.BytesIO(image_bytes))
 
         results.append(
-            ImageFragment.create_from(
+            ImageFragment.with_source(
                 document,
                 label="page_image",
                 human_index=page_num + 1,
@@ -250,7 +250,7 @@ def apply_llm_to_pages(
         messages=messages,
         temperature=settings.temperature,
     )
-    return Extraction.create_from(
+    return Extraction.with_source(
         di_result,
         content=response.choices[0].message.content,
         mime_type="application/json",
@@ -282,7 +282,7 @@ def extract_summary(
 
     response = azure_openai_client.chat.completions.create(model="gpt-4.1-2025-04-14", messages=messages, seed=0)
 
-    return Summary.create_from(
+    return Summary.with_source(
         di_result,
         content=response.choices[0].message.content,
         mime_type="text/plain",
@@ -325,7 +325,7 @@ def evaluate_with_llm(
 
     response = azure_openai_client.chat.completions.create(model=settings.model_name, messages=messages, seed=0)
 
-    return ExtractionEvaluation.create_from(
+    return ExtractionEvaluation.with_source(
         llm_result,
         content=response.choices[0].message.content,
         mime_type="application/json",

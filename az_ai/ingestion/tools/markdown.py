@@ -86,7 +86,7 @@ class MarkdownFigureExtractor:
 
         mlflow.log_image(image, key=f"figure_{figure_index}.png")
 
-        return figure_class.create_from(
+        return figure_class.with_source(
             fragment,
             label="figure",
             human_index=figure_index,

@@ -26,11 +26,8 @@ def fragment_as_table(fragment: Fragment) -> Panel:
     tables.add_column()
     tables.add_row(metadata_table, relationships_table)
 
-    # for rel_type, target in node.relationships.items():
-    #     target_text = f"{target.node_type}\nNode ID: {target.node_id}\nFile name: {target.metadata.get('file_name', 'no filename')}"
-    #     relationships_table.add_row(str(rel_type), target_text)
-
-    relationships_table.add_row("Source", "Dummy")
+    for rel_type, target in fragment.relationships.items():
+        relationships_table.add_row(str(rel_type.name), escape(str(target)))
 
     for key, value in fragment.metadata.items():
         value_str = str(value)

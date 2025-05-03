@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from az_ai.ingestion import Document, Fragment
+from az_ai.ingestion import Document, Fragment, FragmentRelationships
 
 
 @pytest.fixture
@@ -11,6 +11,10 @@ def fragment():
         id="fragment_1",
         label="md",
         metadata={"key": "value"},
+        relationships={
+            FragmentRelationships.SOURCE: "source",
+            FragmentRelationships.SOURCE_DOCUMENT: "source_document"
+        }
     )
 
 
@@ -88,8 +92,8 @@ def test_custom_sub_class_deserialization(fragment):
     assert deserialized_fragment.metadata == fragment.metadata
 
 
-def test_create_from(fragment):
-    new_fragment = Fragment.create_from(fragment)
+def test_with_source(fragment):
+    new_fragment = Fragment.with_source(fragment)
 
     assert new_fragment != fragment
     assert new_fragment.id is not None
@@ -97,7 +101,7 @@ def test_create_from(fragment):
     assert new_fragment.label == fragment.label
     assert new_fragment.metadata == fragment.metadata
 
-    new_fragment = Fragment.create_from(fragment, label="new_label")
+    new_fragment = Fragment.with_source(fragment, label="new_label")
     assert new_fragment != fragment
     assert new_fragment.id is not None
     assert new_fragment.id != fragment.id
@@ -105,7 +109,7 @@ def test_create_from(fragment):
     assert new_fragment.label == "new_label"
     assert new_fragment.metadata == fragment.metadata
 
-    new_document = Document.create_from(fragment)
+    new_document = Document.with_source(fragment)
 
     assert isinstance(new_document, Document)
     assert new_document != fragment
@@ -115,8 +119,8 @@ def test_create_from(fragment):
     assert new_document.metadata == fragment.metadata
 
 
-def test_create_from_with_extra_metadata(fragment):
-    new_fragment = Fragment.create_from(
+def test_with_source_with_extra_metadata(fragment):
+    new_fragment = Fragment.with_source(
         fragment, update_metadata={"extra_key": "extra_value"}
     )
 
@@ -125,3 +129,43 @@ def test_create_from_with_extra_metadata(fragment):
     assert new_fragment.id != fragment.id
     assert new_fragment.label == fragment.label
     assert new_fragment.metadata == {**fragment.metadata, "extra_key": "extra_value"}
+
+def test_with_source_relationships():
+    document = Document(
+        id="doc_1",
+        label="doc",
+    )
+
+    fragment1 = Fragment.with_source(document, label="frag1")
+
+    assert fragment1.relationships[FragmentRelationships.SOURCE] == document.id
+    assert fragment1.relationships[FragmentRelationships.SOURCE_DOCUMENT] == document.id
+
+    fragment2 = Fragment.with_source(fragment1, label="frag2")
+
+    assert fragment2.relationships[FragmentRelationships.SOURCE] == fragment1.id
+    assert fragment2.relationships[FragmentRelationships.SOURCE_DOCUMENT] == document.id
+
+def test_fails_with_no_source():
+    fragment = Fragment(
+        id="fragment_1",
+        label="md",
+        relationships={
+            FragmentRelationships.SOURCE_DOCUMENT: "source_document"
+        }        
+    )
+
+    with pytest.raises(ValueError, match="Source relationship is mandatory in fragment: "):
+        Fragment.with_source(fragment)
+
+def test_fails_with_no_source_document():
+    fragment = Fragment(
+        id="fragment_1",
+        label="md",
+        relationships={
+            FragmentRelationships.SOURCE: "source"
+        }
+    )
+
+    with pytest.raises(ValueError, match="Source document relationship is mandatory in source fragment: "):
+        Fragment.with_source(fragment)

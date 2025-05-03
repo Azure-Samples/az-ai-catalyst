@@ -62,7 +62,7 @@ def apply_document_intelligence(
         ],
         output_content_format=DocumentContentFormat.Markdown,
     )
-    return DocumentIntelligenceResult.create_from_result(
+    return DocumentIntelligenceResult.with_source_result(
         document,
         label="document_intelligence_result",
         analyze_result=poller.result(),
