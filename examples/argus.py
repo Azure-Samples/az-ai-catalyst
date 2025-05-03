@@ -195,7 +195,7 @@ def split_to_page_images(
     from PIL import Image
     from pymupdf import Matrix
 
-    pdf_document = pymupdf.open(document.metadata["file_path"])
+    pdf_document = pymupdf.open(stream=document.content, filetype="pdf")
     results = []
     for page_num in range(len(pdf_document)):
         page = pdf_document.load_page(page_num)
@@ -220,11 +220,11 @@ def split_to_page_images(
 @mlflow.trace(span_type=SpanType.CHAIN)
 def apply_llm_to_pages(
     di_result: DocumentIntelligenceResult, page_images: list[ImageFragment]
-) -> Annotated[Extraction, "llm_result"]:
+) -> Annotated[Extraction, "extraction"]:
     """
     1. Generate an image for each page
     2. Send every page as Markdown and the images for each page the LLM
-    3. Extract the result into an llm_result fragment
+    3. Extract the result into an Extraction fragment
     """
 
     system_context = EXTRACTION_SYSTEM_PROMPT.format(
@@ -254,7 +254,7 @@ def apply_llm_to_pages(
         di_result,
         content=response.choices[0].message.content,
         mime_type="application/json",
-        label="llm_result",
+        label="extraction",
         update_metadata={
             "azure_openai_response": response.to_dict(),
         },
@@ -296,14 +296,14 @@ def extract_summary(
 @ingestion.operation()
 @mlflow.trace(span_type=SpanType.CHAIN)
 def evaluate_with_llm(
-    fragments: Annotated[list[Fragment], {"label": ["llm_result", "page_image"]}],
-) -> Annotated[ExtractionEvaluation, "evaluated_result"]:
+    extraction: Extraction,
+    page_images: list[ImageFragment]
+) -> Annotated[ExtractionEvaluation, "extraction_evaluation"]:
     """
     1. Generate an image for each page
     2. Send every page as Markdown and the images for each page the LLM
-    3. Extract the result into an llm_result fragment
+    3. Extract the result into an extraction fragment
     """
-    llm_result = next(f for f in fragments if f.label == "llm_result")
 
     messages = [
         {"role": "user", "content": EVALUATION_SYSTEM_PROMPT.format(json_schema=JSON_SCHEMA)},
@@ -312,13 +312,12 @@ def evaluate_with_llm(
             "content": [
                 {
                     "type": "text",
-                    "text": f"Here is the extracted data:\n```json\n{llm_result.content_as_str()}```\n",
+                    "text": f"Here is the extracted data:\n```json\n{extraction.content_as_str()}```\n",
                 },
             ]
             + [
                 {"type": "image_url", "image_url": {"url": image.content_as_data_url()}}
-                for image in fragments
-                if image.label == "page_image"
+                for image in page_images
             ],
         },
     ]
@@ -326,10 +325,10 @@ def evaluate_with_llm(
     response = azure_openai_client.chat.completions.create(model=settings.model_name, messages=messages, seed=0)
 
     return ExtractionEvaluation.with_source(
-        llm_result,
+        extraction,
         content=response.choices[0].message.content,
         mime_type="application/json",
-        label="evaluated_result",
+        label="extraction_evaluation",
         update_metadata={
             "azure_openai_response": response.to_dict(),
         },
@@ -350,7 +349,7 @@ with mlflow.start_run():
     ingestion()
 
     for fragment in ingestion.repository.find(
-        FragmentSelector(fragment_type="Fragment", labels=["evaluated_result", "llm_result"])
+        FragmentSelector(fragment_type="Fragment", labels=["extraction_evaluation", "extraction"])
     ):
         mlflow.log_artifact(ingestion.repository.human_content_path(fragment))
 
@@ -363,11 +362,11 @@ with mlflow.start_run():
 # def apply_llm_to_pages(
 #     document_intelligence_result: Fragment,
 #     images: Annotated[list[Fragment], {"label": "page_image"}],
-# ) -> Annotated[Fragment, "llm_result"]:
+# ) -> Annotated[Fragment, "extraction"]:
 
 
 # @ingestion.operation()
 # def apply_llm_to_pages(
 #     document_intelligence_result: Fragment,
 #     page_images: list[Fragment],
-# ) -> Annotated[Fragment, "llm_result"]:
+# ) -> Annotated[Fragment, "extraction"]:
