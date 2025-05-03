@@ -1,9 +1,9 @@
 import base64
 import json
 import mimetypes
-from pathlib import Path
 from collections.abc import Callable
 from io import BytesIO
+from pathlib import Path
 from typing import (
     Any,
     Self,
@@ -291,7 +291,7 @@ class FragmentSelector(BaseModel, frozen=True):
         result = f"{self.fragment_type}{{"
         if self.labels:
             result += f"_{','.join(self.labels)}}}"
-        return result
+        return result + "}"
 
     def __hash__(self):
         return hash((self.fragment_type, tuple(self.labels)))

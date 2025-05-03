@@ -1,4 +1,4 @@
-import time 
+import time
 
 from rich.console import Console
 from rich.markup import escape

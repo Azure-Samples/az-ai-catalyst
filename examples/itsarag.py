@@ -215,7 +215,7 @@ def apply_document_intelligence(
 @ingestion.operation()
 @mlflow.trace(span_type=SpanType.CHAIN)
 def extract_figures(
-    fragment: DocumentIntelligenceResult,
+    di_result: DocumentIntelligenceResult,
 ) -> Annotated[list[Figure], "figure"]:
     """
     1. Process every figure in the "document_intelligence_result" fragment, extract the figure from
@@ -225,7 +225,7 @@ def extract_figures(
     """
     from az_ai.ingestion.tools.markdown import MarkdownFigureExtractor
 
-    return MarkdownFigureExtractor().extract(fragment, Figure)
+    return MarkdownFigureExtractor().extract(di_result, Figure)
 
 
 @ingestion.operation()
