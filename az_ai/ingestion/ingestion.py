@@ -12,6 +12,12 @@ from typing import (
     get_type_hints,
 )
 
+from azure.ai.documentintelligence import DocumentIntelligenceClient
+from azure.ai.projects import AIProjectClient
+from azure.identity import DefaultAzureCredential
+from azure.search.documents import SearchClient
+from azure.search.documents.indexes import SearchIndexClient
+
 from az_ai.ingestion.repository import LocalRepository, Repository
 from az_ai.ingestion.runner import IngestionRunner, OperationError
 from az_ai.ingestion.schema import (
@@ -39,18 +45,16 @@ class Ingestion:
 
         runner.run(*args, **kwargs)
 
-        if "search_client" in kwargs:
-            self.update_index(kwargs["search_client"])
-
     def operation(self, scope="same") -> Callable[[CommandFunctionType], CommandFunctionType]:
         """
         Decorator to register an operation function.
 
         Args:
             scope (str): The scope of the operation. Can be "same" or "all". Default is "same".
-                "same" means the operation will be executed once for each batch of fragments with 
+                "same" means the operation will be executed once for each batch of fragments with
                 the same source document.
         """
+
         def decorator(func: CommandFunctionType) -> CommandFunctionType:
             logger.debug("Registering operation function %s...", func.__name__)
             operation_spec = self._parse_signature(func, scope)
@@ -66,7 +70,7 @@ class Ingestion:
         """
         return self._operations
 
-    def update_index(self, search_client):
+    def update_index(self):
         """
         Update the index with the new fragments.
         """
@@ -82,7 +86,7 @@ class Ingestion:
                     document[key] = str(value)
             documents.append(document)
 
-        search_client.upload_documents(documents)
+        self.search_client.upload_documents(documents)
 
     def mermaid(self) -> str:
         """
@@ -98,7 +102,7 @@ class Ingestion:
                         f"    {selector.fragment_type}_{label}"
                         f"""@{{ shape: doc, label: "{selector.fragment_type}[{label}]" }}"""
                     ] = selector
-                
+
             selector = operation.output_spec.selector()
             labels = [""] if not selector.labels else selector.labels
             for label in labels:
@@ -107,7 +111,7 @@ class Ingestion:
                     f"""@{{ shape: doc, label: "{selector.fragment_type}[{label}]" }}"""
                 ] = selector
             boxes[f"""    {operation.name}@{{ shape: rect, label: "{operation.name}" }}"""] = operation
-        
+
         diagram = ["flowchart TD"]
         diagram += [box for box in boxes]
         for operation in self.operations().values():
@@ -161,6 +165,75 @@ class Ingestion:
 
         self.repository.store(document)
         return document
+
+    @property
+    def credential(self):
+        """
+        Get the Azure credential.
+        """
+        if not hasattr(self, "_credential"):
+            self._credential = DefaultAzureCredential()
+        return self._credential
+
+    @property
+    def ai_project_client(self):
+        """
+        Get the AI project client.
+        """
+        if not hasattr(self, "_ai_project_client"):
+            self._ai_project_client = AIProjectClient.from_connection_string(
+                conn_str=self.settings.azure_ai_project_connection_string, credential=self.credential
+            )
+        return self._ai_project_client
+
+    @property
+    def document_intelligence_client(self):
+        """
+        Get the document intelligence client.
+        """
+        if not hasattr(self, "_document_intelligence_client"):
+            self._document_intelligence_client = DocumentIntelligenceClient(
+                self.settings.azure_ai_endpoint,
+                api_version="2024-11-30",
+                credential=self.credential,
+            )
+        return self._document_intelligence_client
+
+    @property
+    def azure_openai_client(self):
+        """
+        Get the Azure OpenAI client.
+        """
+        if not hasattr(self, "_azure_openai_client"):
+            self._azure_openai_client = self.ai_project_client.inference.get_azure_openai_client(
+                api_version=self.settings.azure_openai_api_version
+            )
+        return self._azure_openai_client
+
+    @property
+    def search_index_client(self):
+        """
+        Get the Azure AI Search Index client.
+        """
+        if not hasattr(self, "_search_index_client"):
+            self._search_index_client = SearchIndexClient(
+                endpoint=self.settings.azure_ai_search_endpoint,
+                credential=self.credential,
+            )
+        return self._search_index_client
+    
+    @property
+    def search_client(self):
+        """
+        Get the Azure AI Search client.
+        """
+        if not hasattr(self, "_search_client"):
+            self._search_client = SearchClient(
+            endpoint=self.settings.azure_ai_search_endpoint,
+            credential=self.credential,
+            index_name=self.settings.index_name,
+)
+        return self._search_client
 
     def _parse_signature(self, func: CommandFunctionType, scope: str) -> OperationSpec:
         """
@@ -216,9 +289,7 @@ class Ingestion:
         if get_origin(param_type) is Annotated:
             param_type, filter = get_args(param_type)
             if not isinstance(filter, dict):
-                raise OperationError(
-                    f"Operation function parameter {param_name} filter must be a dict not {filter}"
-                )
+                raise OperationError(f"Operation function parameter {param_name} filter must be a dict not {filter}")
 
         base_type = self._get_base_type(param_type)
         multiple = False

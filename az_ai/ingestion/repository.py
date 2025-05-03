@@ -314,7 +314,7 @@ class LocalRepository(Repository):
             with request.urlopen(fragment.content_url) as response:
                 return response.read()
         except Exception as exc:
-            raise FragmentContentNotFoundError(f"Failed to fetch content from {fragment.content_url}: {e}") from exc
+            raise FragmentContentNotFoundError(f"Failed to fetch content from {fragment.content_url}: {exc}") from exc
 
     def _get_content_from_ref(self, fragment: Fragment) -> bytes:
         content_path = self._content_path(fragment)

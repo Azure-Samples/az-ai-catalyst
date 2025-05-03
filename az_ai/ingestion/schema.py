@@ -2,6 +2,7 @@ import base64
 import json
 import mimetypes
 from collections.abc import Callable
+from enum import Enum, auto
 from io import BytesIO
 from pathlib import Path
 from typing import (
@@ -26,10 +27,6 @@ from pydantic import (
 )
 from pydantic.json_schema import JsonSchemaValue
 from pydantic_core import CoreSchema
-
-from enum import Enum, auto
-
-
 
 
 class FragmentRelationships(str, Enum):

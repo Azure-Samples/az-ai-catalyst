@@ -4,9 +4,9 @@ from typing import Annotated
 import pytest
 
 from az_ai.ingestion import Document, Fragment, Ingestion, OperationError
-from az_ai.ingestion.settings import IngestionSettings
 from az_ai.ingestion.repository import LocalRepository
 from az_ai.ingestion.schema import FragmentSelector
+from az_ai.ingestion.settings import IngestionSettings
 
 
 @pytest.fixture(scope="function")

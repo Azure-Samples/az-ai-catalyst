@@ -13,19 +13,27 @@ from pydantic_settings import (
 
 # TODO: implement load_azd_env
 
+
 class IngestionSettings(BaseSettings):
     repository_path: Path
+    index_name: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("index_name", "Name of the index to use (and create if it does not exist)"),
+    )
 
     azure_ai_project_connection_string: str
     azure_ai_endpoint: str = Field(validation_alias=AliasChoices("azure_ai_endpoint", "azure_openai_endpoint"))
-    azure_openai_api_version: str = Field(validation_alias=AliasChoices("openai_api_version", "azure_openai_api_version"))
+    azure_openai_api_version: str = Field(
+        validation_alias=AliasChoices("openai_api_version", "azure_openai_api_version")
+    )
     azure_ai_search_endpoint: str = Field(validation_alias=AliasChoices("search_endpoint", "azure_ai_search_endpoint"))
 
     model_config = SettingsConfigDict(
-        env_file='.env', 
+        env_file=".env",
         pyproject_toml_depth=5,
-        pyproject_toml_table_header=('tool', 'az_ai', 'ingestion'),
-        extra='ignore')
+        pyproject_toml_table_header=("tool", "az_ai", "ingestion"),
+        extra="ignore",
+    )
 
     @classmethod
     def settings_customise_sources(
@@ -43,4 +51,3 @@ class IngestionSettings(BaseSettings):
             dotenv_settings,
             file_secret_settings,
         )
-

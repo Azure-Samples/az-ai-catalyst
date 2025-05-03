@@ -1,21 +1,16 @@
 #!/usr/bin/env python3
-from pathlib import Path
 from typing import Annotated, Any
 
 import mlflow
-from azure.ai.documentintelligence import DocumentIntelligenceClient
 from azure.ai.documentintelligence.models import (
     AnalyzeDocumentRequest,
     DocumentAnalysisFeature,
     DocumentContentFormat,
 )
-from azure.ai.projects import AIProjectClient
-from azure.identity import DefaultAzureCredential
 from mlflow.entities import SpanType
 
 import az_ai.ingestion
 from az_ai.ingestion import Document, DocumentIntelligenceResult, Fragment, ImageFragment, IngestionSettings
-from az_ai.ingestion.repository import LocalRepository
 from az_ai.ingestion.schema import FragmentSelector
 
 # logging.basicConfig(level=logging.INFO)
@@ -35,26 +30,6 @@ class ArgusSettings(IngestionSettings):
 
 
 settings = ArgusSettings(repository_path="/tmp/argus_ingestion")
-
-#
-# Initialize Azure AI Foundry Services we will need
-#
-
-credential = DefaultAzureCredential()
-project = AIProjectClient.from_connection_string(
-    conn_str=settings.azure_ai_project_connection_string, credential=credential
-)
-
-document_intelligence_client = DocumentIntelligenceClient(
-    endpoint=settings.azure_ai_endpoint,
-    api_version="2024-11-30",
-    credential=credential,
-)
-
-azure_openai_client = project.inference.get_azure_openai_client(
-    api_version=settings.azure_openai_api_version,
-)
-
 
 #
 # Ingestion workflow
@@ -161,7 +136,7 @@ def apply_document_intelligence(
     Get the PDF and apply DocumentIntelligence
     Generate a fragment containing DocumentIntelligenceResult and Markdown
     """
-    poller = document_intelligence_client.begin_analyze_document(
+    poller = ingestion.document_intelligence_client.begin_analyze_document(
         model_id="prebuilt-layout",
         body=AnalyzeDocumentRequest(
             bytes_source=document.content,
@@ -242,7 +217,7 @@ def apply_llm_to_pages(
         },
     ]
 
-    response = azure_openai_client.chat.completions.create(
+    response = ingestion.azure_openai_client.chat.completions.create(
         model=settings.model_name,
         messages=messages,
         temperature=settings.temperature,
@@ -277,7 +252,7 @@ def extract_summary(
         {"role": "user", "content": di_result.content_as_str()},
     ]
 
-    response = azure_openai_client.chat.completions.create(model="gpt-4.1-2025-04-14", messages=messages, seed=0)
+    response = ingestion.azure_openai_client.chat.completions.create(model="gpt-4.1-2025-04-14", messages=messages, seed=0)
 
     return Summary.with_source(
         di_result,
@@ -319,7 +294,7 @@ def evaluate_with_llm(
         },
     ]
 
-    response = azure_openai_client.chat.completions.create(model=settings.model_name, messages=messages, seed=0)
+    response = ingestion.azure_openai_client.chat.completions.create(model=settings.model_name, messages=messages, seed=0)
 
     return ExtractionEvaluation.with_source(
         extraction,

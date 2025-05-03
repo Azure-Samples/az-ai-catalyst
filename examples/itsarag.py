@@ -1,19 +1,13 @@
 #!/usr/bin/env python3
 import re
-from pathlib import Path
 from typing import Annotated, Any
 
 import mlflow
-from azure.ai.documentintelligence import DocumentIntelligenceClient
 from azure.ai.documentintelligence.models import (
     AnalyzeDocumentRequest,
     DocumentAnalysisFeature,
     DocumentContentFormat,
 )
-from azure.ai.projects import AIProjectClient
-from azure.identity import DefaultAzureCredential
-from azure.search.documents import SearchClient
-from azure.search.documents.indexes import SearchIndexClient
 from azure.search.documents.indexes.models import (
     HnswAlgorithmConfiguration,
     HnswParameters,
@@ -29,7 +23,6 @@ from mlflow.entities import SpanType
 
 import az_ai.ingestion
 from az_ai.ingestion import Chunk, Document, DocumentIntelligenceResult, Fragment, ImageFragment
-from az_ai.ingestion.repository import LocalRepository
 from az_ai.ingestion.settings import IngestionSettings
 
 # logging.basicConfig(level=logging.INFO)
@@ -37,6 +30,7 @@ from az_ai.ingestion.settings import IngestionSettings
 # logging.getLogger("azure.identity").setLevel(logging.WARNING)
 
 mlflow.openai.autolog()
+
 
 class ItsaragSettings(IngestionSettings):
     model_name: str = "gpt-4.1-2025-04-14"
@@ -50,33 +44,9 @@ class ItsaragSettings(IngestionSettings):
             "temperature": self.temperature,
             "max_tokens": self.max_tokens,
         }
-    
+
 
 settings = ItsaragSettings(repository_path="/tmp/itsarag_ingestion")
-
-#
-# Initialize Azure AI Foundry Services we will need
-#
-
-credential = DefaultAzureCredential()
-project = AIProjectClient.from_connection_string(
-    conn_str=settings.azure_ai_project_connection_string, credential=credential
-)
-
-document_intelligence_client = DocumentIntelligenceClient(
-    endpoint=settings.azure_ai_endpoint,
-    api_version="2024-11-30",
-    credential=credential,
-)
-
-azure_openai_client = project.inference.get_azure_openai_client(
-    api_version=settings.azure_openai_api_version,
-)
-
-search_index_client = SearchIndexClient(
-    endpoint=settings.azure_ai_search_endpoint,
-    credential=credential,
-)
 
 fields = [
     SimpleField(
@@ -153,20 +123,13 @@ index = SearchIndex(
     ),
 )
 
-
-result = search_index_client.create_or_update_index(index=index)
-
-search_client = SearchClient(
-    endpoint=settings.azure_ai_search_endpoint,
-    credential=credential,
-    index_name=index.name,
-)
-
 #
-# Ingestion workflow 
+# Ingestion workflow
 #
 
 ingestion = az_ai.ingestion.Ingestion(settings=settings)
+
+result = ingestion.search_index_client.create_or_update_index(index=index)
 
 class Figure(ImageFragment):
     pass
@@ -180,8 +143,6 @@ class MarkdownFragment(Fragment):
     pass
 
 
-
-
 @ingestion.operation()
 @mlflow.trace(span_type=SpanType.CHAIN)
 def apply_document_intelligence(
@@ -192,7 +153,7 @@ def apply_document_intelligence(
     Generate a fragment containing DocumentIntelligenceResult and Markdown
     """
 
-    poller = document_intelligence_client.begin_analyze_document(
+    poller = ingestion.document_intelligence_client.begin_analyze_document(
         model_id="prebuilt-layout",
         body=AnalyzeDocumentRequest(
             bytes_source=ingestion.repository.get(document).content,
@@ -252,7 +213,7 @@ def describe_figure(
         **IMPORTANT: Format your response as Markdown.**
     """
 
-    response = azure_openai_client.chat.completions.create(
+    response = ingestion.azure_openai_client.chat.completions.create(
         model=settings.model_name,
         messages=[
             {"role": "system", "content": SYSTEM_CONTEXT},
@@ -339,7 +300,7 @@ def embed(
     """
     results = []
     for index, fragment in enumerate(fragments):
-        response = azure_openai_client.embeddings.create(
+        response = ingestion.azure_openai_client.embeddings.create(
             model="text-embedding-3-large",
             input=fragment.content_as_str(),
         )
@@ -379,7 +340,8 @@ with mlflow.start_run():
     # ingestion.add_document_from_file("../itsarag/data/fsi/pdf/2023 FY GOOGL Short.pdf")
     # ingestion.add_document_from_file("../itsarag/data/fsi/pdf/2023 FY GOOGL.pdf")
 
-    ingestion(search_client=search_client)
+    ingestion()
+    ingestion.update_index()
 
 
 # Other ideas:
