@@ -162,8 +162,8 @@ class Ingestion:
                 "file_type": mime_type,  # this is the original file mime type
             },
         )
-
         self.repository.store(document)
+        
         return document
 
     @property

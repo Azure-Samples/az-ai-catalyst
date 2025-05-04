@@ -162,9 +162,6 @@ class LocalRepository(Repository):
             fragment = Fragment.from_json(f.read())
             if fragment.content_ref:
                 fragment.content = self._get_content_from_ref(fragment)
-            elif "content_url" in fragment.__class__.model_fields and fragment.content_url:
-                fragment.content = self._get_content_from_url(fragment)
-                self.update(fragment)
         return fragment
 
     def store(self, fragment: Fragment) -> Fragment:
@@ -173,8 +170,11 @@ class LocalRepository(Repository):
         fragment_path = self._fragment_path(fragment)
         if fragment_path.exists():
             raise DuplicateFragmentError(f"Fragment {fragment.id} already exists.")
+        if not fragment.content and "content_url" in fragment.__class__.model_fields and fragment.content_url:
+            fragment.content = self._get_content_from_url(fragment)
         if fragment.content:
             self._store_content(fragment)
+ 
         if not fragment_path.parent.exists():
             fragment_path.parent.mkdir()
         fragment_path.write_text(fragment.model_dump_json(indent=2))
