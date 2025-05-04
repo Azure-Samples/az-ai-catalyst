@@ -194,7 +194,7 @@ class Ingestion:
         if not hasattr(self, "_document_intelligence_client"):
             self._document_intelligence_client = DocumentIntelligenceClient(
                 self.settings.azure_ai_endpoint,
-                api_version="2024-11-30",
+                api_version="2024-11-30", # TODO: add this to the settings
                 credential=self.credential,
             )
         return self._document_intelligence_client
