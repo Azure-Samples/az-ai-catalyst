@@ -133,6 +133,7 @@ ingestion = az_ai.ingestion.Ingestion(settings=settings)
 
 result = ingestion.search_index_client.create_or_update_index(index=index)
 
+
 class Figure(ImageFragment):
     pass
 
@@ -300,30 +301,24 @@ def embed(
     """
     For each figures or MD fragment create an chunk fragment
     """
-    results = []
-    for index, fragment in enumerate(fragments):
-        response = ingestion.azure_openai_client.embeddings.create(
-            model="text-embedding-3-large",
-            input=fragment.content_as_str(),
-        )
-        embedding = response.data[0].embedding
-        results.append(
-            Chunk.with_source(
-                fragment,
-                label="chunk",
-                human_index=index + 1,
-                content=fragment.content,
-                vector=embedding,
-                metadata={
-                    "file_name": fragment.metadata["file_name"],
-                    "page_number": fragment.metadata["page_number"],
-                    "data_url": fragment.metadata.get("data_url", None),
-                    "url": f"https://www.example.com/{fragment.metadata['file_name']}",
-                },
-            )
-        )
+    from az_ai.ingestion.helpers.azure_openai import create_embeddings
 
-    return results
+    return [
+        create_embeddings(
+            ingestion=ingestion,
+            fragment=fragment,
+            label="chunk",
+            human_index = index + 1,
+            model="text-embedding-3-large",
+            metadata={
+                "file_name": fragment.metadata["file_name"],
+                "page_number": fragment.metadata["page_number"],
+                "data_url": fragment.metadata.get("data_url", None),
+                "url": f"https://www.example.com/{fragment.metadata['file_name']}",
+            }
+        )
+        for index, fragment in enumerate(fragments)
+    ]
 
 
 # Write the ingestion pipeline diagram to a markdown file

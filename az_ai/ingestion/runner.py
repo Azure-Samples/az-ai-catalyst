@@ -3,13 +3,13 @@ import time
 from rich.console import Console
 from rich.markup import escape
 
+from az_ai.ingestion.helpers.rich import fragment_as_table
 from az_ai.ingestion.repository import Repository
 from az_ai.ingestion.schema import (
     Fragment,
     OperationsLogEntry,
     OperationSpec,
 )
-from az_ai.ingestion.helpers.rich import fragment_as_table
 
 
 class OperationError(Exception):
