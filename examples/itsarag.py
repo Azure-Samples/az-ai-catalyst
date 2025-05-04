@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
+
 import re
+from textwrap import dedent
 from typing import Annotated, Any
 
 import mlflow
@@ -181,7 +183,7 @@ def extract_figures(
     2. Create a new image fragment for each figure.
     3. Insert a figure reference in the document_intelligence_result fragment Markdown.
     """
-    from az_ai.ingestion.tools.markdown import MarkdownFigureExtractor
+    from az_ai.ingestion.helpers.markdown import MarkdownFigureExtractor
 
     return MarkdownFigureExtractor().extract(di_result, Figure)
 
@@ -195,9 +197,9 @@ def describe_figure(
     1. Process the image fragment and generate a description.
     2. Create a new fragment with the description.
     """
-    from az_ai.ingestion.tools.markdown import extract_code_block
+    from az_ai.ingestion.helpers.markdown import extract_code_block
 
-    SYSTEM_CONTEXT = """\
+    SYSTEM_CONTEXT = dedent("""\
         You are a helpful assistant that describe images in in vivid, precise details. 
 
         Focus on the graphs, charts, tables, and any flat images, providing clear descriptions of the data they 
@@ -211,7 +213,7 @@ def describe_figure(
         understanding the data.
 
         **IMPORTANT: Format your response as Markdown.**
-    """
+    """)
 
     response = ingestion.azure_openai_client.chat.completions.create(
         model=settings.model_name,

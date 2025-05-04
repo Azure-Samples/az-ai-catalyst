@@ -9,7 +9,7 @@ from az_ai.ingestion.schema import (
     OperationsLogEntry,
     OperationSpec,
 )
-from az_ai.ingestion.tools.rich import fragment_as_table
+from az_ai.ingestion.helpers.rich import fragment_as_table
 
 
 class OperationError(Exception):

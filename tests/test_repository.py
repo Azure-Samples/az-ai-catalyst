@@ -93,8 +93,6 @@ def test_find_document(repository, document):
     retrieved_fragments = repository.find(selector)
 
     assert len(retrieved_fragments) == 1
-    retrieved_fragments[0].content_ref = None
-    retrieved_fragments[0].content = None
     assert retrieved_fragments[0] == document
 
     selector = FragmentSelector(fragment_type="Document", labels=["wrong_doc_label"])
@@ -107,9 +105,6 @@ def test_find_all(repository, fragment, document):
     retrieved_fragments = repository.find()
 
     assert len(retrieved_fragments) == 2
-    for fragment in retrieved_fragments:
-        fragment.content_ref = None
-        fragment.content = None
     assert fragment in retrieved_fragments
     assert document in retrieved_fragments
 
@@ -137,9 +132,6 @@ def test_document_store(empty_repository, document):
     # At that point content has been loaded by the repository
     assert retrieved_document.content_ref == document.id
     assert retrieved_document.content == Path("README.md").read_bytes()
-
-    retrieved_document.content_ref = None
-    retrieved_document.content = None
     assert retrieved_document == document
 
 
