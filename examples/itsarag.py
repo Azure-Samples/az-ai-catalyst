@@ -161,9 +161,7 @@ def apply_document_intelligence(
         body=AnalyzeDocumentRequest(
             bytes_source=ingestion.repository.get(document).content,
         ),
-        features=[
-            DocumentAnalysisFeature.OCR_HIGH_RESOLUTION,
-        ],
+        features=[DocumentAnalysisFeature.OCR_HIGH_RESOLUTION] if document.mime_type == "application/pdf" else [],
         output_content_format=DocumentContentFormat.Markdown,
     )
     return DocumentIntelligenceResult.with_source_result(

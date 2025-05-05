@@ -68,9 +68,7 @@ def apply_document_intelligence(
         body=AnalyzeDocumentRequest(
             bytes_source=document.content,
         ),
-        features=[
-            DocumentAnalysisFeature.OCR_HIGH_RESOLUTION,
-        ],
+        features=[DocumentAnalysisFeature.OCR_HIGH_RESOLUTION] if document.mime_type == "application/pdf" else [],
         output_content_format=DocumentContentFormat.Markdown,
     )
     return DocumentIntelligenceResult.with_source_result(
@@ -205,14 +203,15 @@ def evaluate_with_llm(
     3. Extract the result into an extraction fragment
     """
 
+    system_message = EVALUATION_SYSTEM_PROMPT.format(json_schema=ingestion.settings.json_schema)
     messages = [
-        {"role": "user", "content": EVALUATION_SYSTEM_PROMPT.format(json_schema=ingestion.settings.json_schema)},
+        {"role": "system", "content": system_message},
         {
             "role": "user",
             "content": [
                 {
                     "type": "text",
-                    "text": f"Here is the extracted data:\n```json\n{extraction.content_as_str()}```\n",
+                    "text": (f"Here is the extracted data:\n```json\n{extraction.content_as_str()}```\n"),
                 },
             ]
             + [{"type": "image_url", "image_url": {"url": image.content_as_data_url()}} for image in page_images],
