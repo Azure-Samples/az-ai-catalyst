@@ -25,6 +25,7 @@ from mlflow.entities import SpanType
 
 import az_ai.ingestion
 from az_ai.ingestion import Chunk, Document, DocumentIntelligenceResult, Fragment, ImageFragment
+from az_ai.ingestion.helpers.documentation import mermaid
 from az_ai.ingestion.settings import IngestionSettings
 
 # logging.basicConfig(level=logging.INFO)
@@ -322,7 +323,7 @@ def embed(
 # Write the ingestion pipeline diagram to a markdown file
 with open("examples/itsarag.md", "w") as f:
     f.write("```mermaid\n---\ntitle: It's a RAG Ingestion Pipeline\n---\n")
-    f.write(ingestion.mermaid())
+    f.write(mermaid(ingestion))
     f.write("\n```")
 
 # execute the ingestion pipeline

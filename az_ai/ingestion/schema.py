@@ -9,6 +9,7 @@ from typing import (
     Any,
     Self,
     TypeVar,
+    Union,
 )
 from uuid import uuid4
 
@@ -308,15 +309,31 @@ class FragmentSelector(BaseModel, frozen=True):
         description="Labels for the output parameter.",
     )
 
-    def matches(self, fragment: Fragment) -> bool:
+    def matches(self, fragment_or_selector: Union[Fragment, "FragmentSelector"]) -> bool:
         """
         Check if the fragment matches the specification.
         """
-        if not isinstance(fragment, Fragment.get_subclass(self.fragment_type)):
+        if isinstance(fragment_or_selector, FragmentSelector):
+            return self.matches_selector(fragment_or_selector)
+        if not isinstance(fragment_or_selector, Fragment.get_subclass(self.fragment_type)):
             return False
         if len(self.labels) == 0:
             return True
-        return fragment.label in self.labels
+        return fragment_or_selector.label in self.labels
+
+    def matches_selector(self, selector: "FragmentSelector") -> bool:
+        """
+        Check if the selector matches the specification.
+        """
+        self_class = Fragment.get_subclass(self.fragment_type)
+        selector_class = Fragment.get_subclass(selector.fragment_type)
+        if not issubclass(selector_class, self_class):
+            return False
+        if len(self.labels) == 0:
+            return True
+        if len(selector.labels) == 0:
+            return False
+        return all(label in self.labels for label in selector.labels)
 
     def __str__(self):
         result = f"{self.fragment_type}{{"

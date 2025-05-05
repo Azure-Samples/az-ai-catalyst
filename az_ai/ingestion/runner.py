@@ -40,10 +40,10 @@ class IngestionRunner:
 
     def _run_operation(self, operation: OperationSpec):
         self._console.log(f"Running {escape(str(operation))}: ")
+
         inputs = [self.repository.find(input.selector()) for input in operation.input_specs]
-
+        
         call_arguments = self._create_call_arguments(operation, inputs, operation.scope == "same")
-
         for arguments in call_arguments:
             input_fragment_ids = self._input_fragment_ids_set(arguments)
             if self._skip_operation(input_fragment_ids, operation):

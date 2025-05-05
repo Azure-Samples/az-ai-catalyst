@@ -11,6 +11,7 @@ from mlflow.entities import SpanType
 
 import az_ai.ingestion
 from az_ai.ingestion import Document, DocumentIntelligenceResult, Fragment, ImageFragment, IngestionSettings
+from az_ai.ingestion.helpers.documentation import mermaid
 from az_ai.ingestion.schema import FragmentSelector
 
 # logging.basicConfig(level=logging.INFO)
@@ -115,6 +116,41 @@ def split_to_page_images(
 
 @ingestion.operation()
 @mlflow.trace(span_type=SpanType.CHAIN)
+def extract_summary(
+    di_result: DocumentIntelligenceResult,
+) -> Annotated[Summary, "summary"]:
+    """
+    1. Extract the summary from the LLM result
+    2. Generate a fragment containing the summary
+    """
+
+    reasoning_prompt = """
+    Use the provided data represented in the schema to produce a summary in natural language. 
+    The format should be a few sentences summary of the document.
+    """
+    messages = [
+        {"role": "user", "content": reasoning_prompt},
+        {"role": "user", "content": di_result.content_as_str()},
+    ]
+
+    response = ingestion.azure_openai_client.chat.completions.create(
+        model="gpt-4.1-2025-04-14", messages=messages, seed=0
+    )
+
+    return Summary.with_source(
+        di_result,
+        content=response.choices[0].message.content,
+        mime_type="text/plain",
+        label="summary",
+        update_metadata={
+            "azure_openai_response": response.to_dict(),
+            "document_intelligence_result": None,
+        },
+    )
+
+
+@ingestion.operation()
+@mlflow.trace(span_type=SpanType.CHAIN)
 def apply_llm_to_pages(
     di_result: DocumentIntelligenceResult, page_images: list[ImageFragment]
 ) -> Annotated[Extraction, "extraction"]:
@@ -154,40 +190,7 @@ def apply_llm_to_pages(
         label="extraction",
         update_metadata={
             "azure_openai_response": response.to_dict(),
-        },
-    )
-
-
-@ingestion.operation()
-@mlflow.trace(span_type=SpanType.CHAIN)
-def extract_summary(
-    di_result: DocumentIntelligenceResult,
-) -> Annotated[Summary, "summary"]:
-    """
-    1. Extract the summary from the LLM result
-    2. Generate a fragment containing the summary
-    """
-
-    reasoning_prompt = """
-    Use the provided data represented in the schema to produce a summary in natural language. 
-    The format should be a few sentences summary of the document.
-    """
-    messages = [
-        {"role": "user", "content": reasoning_prompt},
-        {"role": "user", "content": di_result.content_as_str()},
-    ]
-
-    response = ingestion.azure_openai_client.chat.completions.create(
-        model="gpt-4.1-2025-04-14", messages=messages, seed=0
-    )
-
-    return Summary.with_source(
-        di_result,
-        content=response.choices[0].message.content,
-        mime_type="text/plain",
-        label="summary",
-        update_metadata={
-            "azure_openai_response": response.to_dict(),
+            "document_intelligence_result": None,
         },
     )
 
@@ -306,7 +309,7 @@ Here is the JSON schema template that was used for the extraction:
 
 with open("examples/argus.md", "w") as f:
     f.write("```mermaid\n---\ntitle: Argus Ingestion Pipeline\n---\n")
-    f.write(ingestion.mermaid())
+    f.write(mermaid(ingestion))
     f.write("\n```")
 
 mlflow.set_experiment("argus")

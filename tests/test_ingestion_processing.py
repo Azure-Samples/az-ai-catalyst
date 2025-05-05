@@ -86,7 +86,6 @@ def test_double_ingestion(two_step_ingestion, document):
     assert len(two_step_ingestion.repository.find()) == 0
     two_step_ingestion.repository.store(document)
 
-    two_step_ingestion.mermaid()
     two_step_ingestion()
 
     fragment = two_step_ingestion.repository.get("output_id")

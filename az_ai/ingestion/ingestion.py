@@ -1,7 +1,6 @@
 import inspect
 import logging
 import mimetypes
-from collections import OrderedDict
 from collections.abc import Callable
 from pathlib import Path
 from typing import (
@@ -87,48 +86,6 @@ class Ingestion:
             documents.append(document)
 
         self.search_client.upload_documents(documents)
-
-    def mermaid(self) -> str:
-        """
-        Generate a mermaid diagram of the ingestion pipeline.
-        """
-        boxes = OrderedDict()
-        for operation in self.operations().values():
-            for input in operation.input_specs:
-                selector = input.selector()
-                labels = [""] if not selector.labels else selector.labels
-                for label in labels:
-                    boxes[
-                        f"    {selector.fragment_type}_{label}"
-                        f"""@{{ shape: doc, label: "{selector.fragment_type}[{label}]" }}"""
-                    ] = selector
-
-            selector = operation.output_spec.selector()
-            labels = [""] if not selector.labels else selector.labels
-            for label in labels:
-                boxes[
-                    f"    {selector.fragment_type}_{label}"
-                    f"""@{{ shape: doc, label: "{selector.fragment_type}[{label}]" }}"""
-                ] = selector
-            boxes[f"""    {operation.name}@{{ shape: rect, label: "{operation.name}" }}"""] = operation
-
-        diagram = ["flowchart TD"]
-        diagram += [box for box in boxes]
-        for operation in self.operations().values():
-            for input in operation.input_specs:
-                selector = input.selector()
-                multiple = "- \\* -" if input.multiple else ""
-                labels = [""] if not selector.labels else selector.labels
-                for label in labels:
-                    diagram.append(f"""    {selector.fragment_type}_{label} -{multiple}-> {operation.name}""")
-
-            selector = operation.output_spec.selector()
-            labels = [""] if not selector.labels else selector.labels
-            multiple = "- \\* -" if operation.output_spec.multiple else ""
-            for label in labels:
-                diagram.append(f"""    {operation.name} -{multiple}-> {selector.fragment_type}_{label}""")
-
-        return "\n".join(diagram)
 
     def add_document_from_file(self, file: str | Path, mime_type: str = None) -> Document:
         """

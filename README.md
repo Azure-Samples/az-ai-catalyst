@@ -26,7 +26,7 @@ Ultimately we want this framework to:
 > have to be careful ensuring that fragments needed for subsequent operations are already processed before 
 > they are used.
 
-## How ot use it
+## How to use it
 
 Here is a simple example of how to use the ingestion processor.
 ```python
