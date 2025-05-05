@@ -26,55 +26,6 @@ Ultimately we want this framework to:
 > have to be careful ensuring that fragments needed for subsequent operations are already processed before 
 > they are used.
 
-## How to use it
-
-Here is a simple example of how to use the ingestion processor.
-```python
-import az_ai.ingestion
-
-from azure.identity import DefaultAzureCredential
-from az_ai.ingestion import Document, DocumentIntelligenceResult
-
-credential = DefaultAzureCredential()
-project = AIProjectClient.from_connection_string(
-    conn_str=os.getenv("AZURE_AI_PROJECT_CONNECTION_STRING"), credential=credential
-)
-
-document_intelligence_client = DocumentIntelligenceClient(
-    endpoint=os.getenv("AZURE_OPENAI_ENDPOINT"),
-    api_version="2024-11-30",
-    credential=credential,
-)
-
-ingestion = az_ai.ingestion.Ingestion()
-
-@ingestion.operation()
-def apply_document_intelligence(
-    document: Document,
-) -> Annotated[DocumentIntelligenceResult, "document_intelligence_result"]:
-    poller = document_intelligence_client.begin_analyze_document(
-        model_id="prebuilt-layout",
-        body=AnalyzeDocumentRequest(
-            bytes_source=document.content,
-        ),
-        features=[
-            DocumentAnalysisFeature.OCR_HIGH_RESOLUTION,
-        ],
-        output_content_format=DocumentContentFormat.Markdown,
-    )
-    return DocumentIntelligenceResult.with_source_result(
-        document,
-        label="document_intelligence_result",
-        analyze_result=poller.result(),
-    )
-
-ingestion.add_document_from_file("tests/data/test.pdf")
-
-ingestion()
-```
-
-See [examples/itsarag.py](examples/itsarag.py) and [examples/argus.py](examples/argus.py) for more complex examples.
-
 ## Quick Start
 
 ### Configure the environment
@@ -128,3 +79,63 @@ uv run mlflow ui --port 5000
 ```
 
 Then open your browser and go to [http://localhost:5000](http://localhost:5000).
+
+### Simple Custom Processor Example
+
+Here is a simple example of how to use the ingestion processor.
+```python
+import az_ai.ingestion
+
+from azure.identity import DefaultAzureCredential
+from az_ai.ingestion import Document, DocumentIntelligenceResult
+
+credential = DefaultAzureCredential()
+project = AIProjectClient.from_connection_string(
+    conn_str=os.getenv("AZURE_AI_PROJECT_CONNECTION_STRING"), credential=credential
+)
+
+document_intelligence_client = DocumentIntelligenceClient(
+    endpoint=os.getenv("AZURE_OPENAI_ENDPOINT"),
+    api_version="2024-11-30",
+    credential=credential,
+)
+
+ingestion = az_ai.ingestion.Ingestion()
+
+@ingestion.operation()
+def apply_document_intelligence(
+    document: Document,
+) -> Annotated[DocumentIntelligenceResult, "document_intelligence_result"]:
+    poller = document_intelligence_client.begin_analyze_document(
+        model_id="prebuilt-layout",
+        body=AnalyzeDocumentRequest(
+            bytes_source=document.content,
+        ),
+        features=[
+            DocumentAnalysisFeature.OCR_HIGH_RESOLUTION,
+        ],
+        output_content_format=DocumentContentFormat.Markdown,
+    )
+    return DocumentIntelligenceResult.with_source_result(
+        document,
+        label="document_intelligence_result",
+        analyze_result=poller.result(),
+    )
+
+ingestion.add_document_from_file("tests/data/test.pdf")
+
+ingestion()
+```
+
+## Responsible AI Guidelines
+
+This project follows responsible AI guidelines and best practices, please review them before using this project:
+
+- [Microsoft Responsible AI Guidelines](https://www.microsoft.com/en-us/ai/responsible-ai)
+- [Responsible AI practices for Azure OpenAI models](https://learn.microsoft.com/en-us/legal/cognitive-services/openai/overview)
+- [Safety evaluations transparency notes](https://learn.microsoft.com/en-us/azure/ai-studio/concepts/safety-evaluations-transparency-note)
+
+## Authors
+
+  * [Dominique Broeglin](https://github.com/dbroeglin)
+  * [Evgeny Minkevich](https://github.com/evmin)
