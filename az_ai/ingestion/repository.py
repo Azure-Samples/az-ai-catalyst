@@ -331,13 +331,12 @@ class LocalRepository(Repository):
         """
         if isinstance(fragment_or_ref, Fragment):
             return (
-                self._path
-                / self._fragments_path
+                self._fragments_path
                 / fragment_or_ref.__class__.class_name()
                 / f"{fragment_or_ref.id}.json"
             )
         else:
-            paths = list((self._path / self._fragments_path).glob(f"*/{fragment_or_ref}.json"))
+            paths = list(self._fragments_path.glob(f"*/{fragment_or_ref}.json"))
             if not paths:
                 raise FragmentNotFoundError(f"Fragment {fragment_or_ref} not found.")
             return paths[0]
