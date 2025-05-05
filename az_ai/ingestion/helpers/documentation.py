@@ -1,9 +1,31 @@
-
-
+from inspect import getsource
+from textwrap import dedent
 from collections import OrderedDict
 from itertools import chain
 
 from az_ai.ingestion import Ingestion
+
+
+def markdown(ingestion: Ingestion, title:str) -> str:
+    return "\n".join(
+        [
+            f"# {title}",
+            "## Diagram",       
+            "```mermaid",
+            "---",
+            f"title: {title}",
+            "---",
+            mermaid(ingestion),
+            "```",
+            "## Operations documentation",
+        ]
+
+        + [f"### {operation.name}\n\n{dedent(operation.func.__doc__)}" 
+           "<details>\n<summary>Code</summary>\n\n"
+           f"```python\n{getsource(operation.func)}\n```\n\n"
+           "</details>\n"
+           for operation in ingestion.operations().values()]
+    )
 
 
 def mermaid(ingestion: Ingestion) -> str:
@@ -18,9 +40,11 @@ def mermaid(ingestion: Ingestion) -> str:
     for operation in ingestion.operations().values():
         selector = operation.output_spec.selector()
         for label in selector.labels:
-            output_boxes[(
-                f"{selector.fragment_type}_{label}",
-                f"""@{{ shape: doc, label: "{selector.fragment_type}[{label}]" }}""")
+            output_boxes[
+                (
+                    f"{selector.fragment_type}_{label}",
+                    f"""@{{ shape: doc, label: "{selector.fragment_type}[{label}]" }}""",
+                )
             ] = selector
 
         operation_boxes[f"""    {operation.name}@{{ shape: rect, label: "{operation.name}" }}"""] = operation
@@ -29,23 +53,23 @@ def mermaid(ingestion: Ingestion) -> str:
     for operation in ingestion.operations().values():
         for input in operation.input_specs:
             selector = input.selector()
-            for output_selector in chain(output_boxes.values(), input_boxes.values()): 
+            for output_selector in chain(output_boxes.values(), input_boxes.values()):
                 if selector.matches(output_selector):
                     # we have an input box that matches an output box or existing input box: do nothing
                     break
             else:
                 if len(selector.labels) == 0:
-                    input_boxes[(
-                        f"{selector.fragment_type}",
-                        f"""@{{ shape: doc, label: "{selector.fragment_type}[]" }}""")
+                    input_boxes[
+                        (f"{selector.fragment_type}", f"""@{{ shape: doc, label: "{selector.fragment_type}[]" }}""")
                     ] = selector
                 else:
                     for label in selector.labels:
                         input_boxes[
-                            (f"{selector.fragment_type}_{label}",
-                            f"""@{{ shape: doc, label: "{selector.fragment_type}[{label}]" }}""")
+                            (
+                                f"{selector.fragment_type}_{label}",
+                                f"""@{{ shape: doc, label: "{selector.fragment_type}[{label}]" }}""",
+                            )
                         ] = selector
-
 
     diagram = ["flowchart TD"]
     diagram += [f"    {box[0]}{box[1]}" for box in input_boxes]

@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+from pathlib import Path
 from typing import Annotated, Any
 
 import mlflow
@@ -11,7 +12,7 @@ from mlflow.entities import SpanType
 
 import az_ai.ingestion
 from az_ai.ingestion import Document, DocumentIntelligenceResult, Fragment, ImageFragment, IngestionSettings
-from az_ai.ingestion.helpers.documentation import mermaid
+from az_ai.ingestion.helpers.documentation import markdown
 from az_ai.ingestion.schema import FragmentSelector
 
 # logging.basicConfig(level=logging.INFO)
@@ -306,11 +307,9 @@ Here is the JSON schema template that was used for the extraction:
 {json_schema}
 """
 
+# Write the ingestion pipeline diagram to a markdown file
+Path("examples/argus.md").write_text(markdown(ingestion, "Argus Ingestor"))
 
-with open("examples/argus.md", "w") as f:
-    f.write("```mermaid\n---\ntitle: Argus Ingestion Pipeline\n---\n")
-    f.write(mermaid(ingestion))
-    f.write("\n```")
 
 mlflow.set_experiment("argus")
 with mlflow.start_run():
