@@ -1,7 +1,7 @@
-from inspect import getsource
-from textwrap import dedent
 from collections import OrderedDict
+from inspect import getsource
 from itertools import chain
+from textwrap import dedent
 
 from az_ai.ingestion import Ingestion
 
@@ -20,7 +20,7 @@ def markdown(ingestion: Ingestion, title:str) -> str:
             "## Operations documentation",
         ]
 
-        + [f"### {operation.name}\n\n{dedent(operation.func.__doc__)}" 
+        + [f"### {operation.name}\n\n{dedent(operation.func.__doc__ or "")}" 
            "<details>\n<summary>Code</summary>\n\n"
            f"```python\n{getsource(operation.func)}\n```\n\n"
            "</details>\n"
