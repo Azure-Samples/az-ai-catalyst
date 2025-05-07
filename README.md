@@ -147,6 +147,13 @@ This project follows responsible AI guidelines and best practices, please review
 - [Responsible AI practices for Azure OpenAI models](https://learn.microsoft.com/en-us/legal/cognitive-services/openai/overview)
 - [Safety evaluations transparency notes](https://learn.microsoft.com/en-us/azure/ai-studio/concepts/safety-evaluations-transparency-note)
 
+## Inspired by
+
+- [Argus](https://github.com/dbroeglin/ARGUS)
+- [It's a RAG](https://github.com/francesco-sodano/itsarag)
+- [Multimodal Document Processing](https://github.com/samelhousseini/mm_doc_proc)
+- [Azure Multimodal AI + LLM Processing Accelerator](https://github.com/Azure/multimodal-ai-llm-processing-accelerator)
+
 ## Authors
 
   * [Dominique Broeglin](https://github.com/dbroeglin)
