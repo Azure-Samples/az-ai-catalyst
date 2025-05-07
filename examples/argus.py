@@ -1,4 +1,10 @@
 #!/usr/bin/env python3
+"""
+Argus Ingestion Example: demonstrate how the Argus pattern can be implemented 
+with az-ai-ingestion.
+
+Source: https://github.com/Azure-Samples/ARGUS
+"""
 from pathlib import Path
 from typing import Annotated, Any
 
@@ -308,7 +314,7 @@ Here is the JSON schema template that was used for the extraction:
 """
 
 # Write the ingestion pipeline diagram to a markdown file
-Path("examples/argus.md").write_text(markdown(ingestion, "Argus Ingestor"))
+Path("examples/argus.md").write_text(markdown(ingestion, "Argus Ingestor", description=__doc__))
 
 
 mlflow.set_experiment("argus")

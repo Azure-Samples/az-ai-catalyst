@@ -1,4 +1,10 @@
 #!/usr/bin/env python3
+"""
+"It's a RAG" Ingestion Example: demonstrate how the It's a RAG pattern can be implemented 
+with az-ai-ingestion.
+
+Source: https://github.com/francesco-sodano/itsarag
+"""
 
 import re
 from pathlib import Path
@@ -322,7 +328,7 @@ def embed(
 
 
 # Write the ingestion pipeline diagram to a markdown file
-Path("examples/itsarag.md").write_text(markdown(ingestion, "It's a RAG Ingestor"))
+Path("examples/itsarag.md").write_text(markdown(ingestion, "It's a RAG Ingestor", description=__doc__))
 
 # execute the ingestion pipeline
 mlflow.set_experiment("itsarag")

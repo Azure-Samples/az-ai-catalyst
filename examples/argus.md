@@ -1,4 +1,12 @@
 # Argus Ingestor
+## Description
+
+
+Argus Ingestion Example: demonstrate how the Argus pattern can be implemented 
+with az-ai-ingestion.
+
+Source: https://github.com/Azure-Samples/ARGUS
+
 ## Diagram
 ```mermaid
 ---

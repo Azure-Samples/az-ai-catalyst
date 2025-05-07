@@ -6,10 +6,15 @@ from textwrap import dedent
 from az_ai.ingestion import Ingestion
 
 
-def markdown(ingestion: Ingestion, title:str) -> str:
+def markdown(ingestion: Ingestion, title: str, description: str = None) -> str:
     return "\n".join(
         [
             f"# {title}",
+        ] 
+        + ([] if description is None else [
+            "## Description", 
+            description])
+        + [
             "## Diagram",       
             "```mermaid",
             "---",

@@ -1,4 +1,11 @@
 # It's a RAG Ingestor
+## Description
+
+"It's a RAG" Ingestion Example: demonstrate how the It's a RAG pattern can be implemented 
+with az-ai-ingestion.
+
+Source: https://github.com/francesco-sodano/itsarag
+
 ## Diagram
 ```mermaid
 ---
