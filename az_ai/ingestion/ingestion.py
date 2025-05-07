@@ -1,3 +1,4 @@
+import functools
 import inspect
 import logging
 import mimetypes
@@ -13,10 +14,11 @@ from typing import (
 
 from azure.ai.documentintelligence import DocumentIntelligenceClient
 from azure.ai.projects import AIProjectClient
-from azure.identity import DefaultAzureCredential
+from azure.identity import DefaultAzureCredential, get_bearer_token_provider
 from azure.search.documents import SearchClient
 from azure.search.documents.indexes import SearchIndexClient
 
+from az_ai.ingestion.helpers.content_understanding_client import AzureContentUnderstandingClient
 from az_ai.ingestion.repository import LocalRepository, Repository
 from az_ai.ingestion.runner import IngestionRunner, OperationError
 from az_ai.ingestion.schema import (
@@ -59,7 +61,10 @@ class Ingestion:
             operation_spec = self._parse_signature(func, scope)
             operation_spec.scope = scope
             self._operations[func.__name__] = operation_spec
-            return func
+            @functools.wraps(func)
+            def wrapper(*args, **kwargs):
+                return func(*args, **kwargs)
+            return wrapper  # type: ignore
 
         return decorator
 
@@ -150,8 +155,8 @@ class Ingestion:
         """
         if not hasattr(self, "_document_intelligence_client"):
             self._document_intelligence_client = DocumentIntelligenceClient(
-                self.settings.azure_ai_endpoint,
-                api_version="2024-11-30", # TODO: add this to the settings
+                self.settings.azure_ai_document_intelligence_endpoint,
+                api_version=self.settings.azure_ai_document_intelligence_api_version,
                 credential=self.credential,
             )
         return self._document_intelligence_client
@@ -191,6 +196,21 @@ class Ingestion:
             index_name=self.settings.index_name,
 )
         return self._search_client
+
+    @property
+    def content_understanding_client(self) -> AzureContentUnderstandingClient:
+        """
+        Get the Azure AI Content Understanding client.
+        """
+        if not hasattr(self, "_content_understanding_client"):
+            self._content_understanding_client = AzureContentUnderstandingClient(
+                endpoint=self.settings.azure_ai_content_understanding_endpoint,
+                api_version=self.settings.azure_ai_content_understanding_api_version,
+                # Hack to get around analyzer creation not working with RBAC "Cognitive Services Contributor" role
+                subscription_key=self.azure_openai_client.api_key,
+                token_provider=get_bearer_token_provider(self.credential, "https://cognitiveservices.azure.com/.default"),
+            )
+        return self._content_understanding_client
 
     def _parse_signature(self, func: CommandFunctionType, scope: str) -> OperationSpec:
         """

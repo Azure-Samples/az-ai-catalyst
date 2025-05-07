@@ -227,6 +227,12 @@ class Document(Fragment):
         else:
             return super().human_file_name(*args, **kwargs)
         
+    def content_path(self) -> Path:
+        """
+        Get the content path for the document.
+        """
+        return Path(self.metadata["file_path"])
+        
     def source_document_ref(self):
         # A document is it's own source.
         return self.id
@@ -262,6 +268,8 @@ class ImageFragment(Fragment):
         self.content = buffer.getvalue()
         if self.mime_type != mime_type:
             self.mime_type = mime_type
+        self.metadata["image_width"] = image.width
+        self.metadata["image_height"] = image.height
 
         return self
 

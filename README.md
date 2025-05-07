@@ -84,29 +84,31 @@ Then open your browser and go to [http://localhost:5000](http://localhost:5000).
 
 Here is a simple example of how to use the ingestion processor.
 ```python
+from pathlib import Path
+from typing import Annotated
+
+from azure.ai.documentintelligence.models import (
+    AnalyzeDocumentRequest,
+    DocumentAnalysisFeature,
+    DocumentContentFormat,
+)
+
 import az_ai.ingestion
-
-from azure.identity import DefaultAzureCredential
 from az_ai.ingestion import Document, DocumentIntelligenceResult
-
-credential = DefaultAzureCredential()
-project = AIProjectClient.from_connection_string(
-    conn_str=os.getenv("AZURE_AI_PROJECT_CONNECTION_STRING"), credential=credential
-)
-
-document_intelligence_client = DocumentIntelligenceClient(
-    endpoint=os.getenv("AZURE_OPENAI_ENDPOINT"),
-    api_version="2024-11-30",
-    credential=credential,
-)
+from az_ai.ingestion.helpers.documentation import markdown
 
 ingestion = az_ai.ingestion.Ingestion()
+
+ingestion.add_document_from_file("tests/data/test.pdf")
 
 @ingestion.operation()
 def apply_document_intelligence(
     document: Document,
 ) -> Annotated[DocumentIntelligenceResult, "document_intelligence_result"]:
-    poller = document_intelligence_client.begin_analyze_document(
+    """
+    Apply Document Intelligence to the document and return a fragment with the result.
+    """
+    poller = ingestion.document_intelligence_client.begin_analyze_document(
         model_id="prebuilt-layout",
         body=AnalyzeDocumentRequest(
             bytes_source=document.content,
@@ -122,10 +124,20 @@ def apply_document_intelligence(
         analyze_result=poller.result(),
     )
 
-ingestion.add_document_from_file("tests/data/test.pdf")
+# Write the ingestor's diagram to a markdown file
+Path("examples/doc.md").write_text(markdown(ingestion, "Sample Ingestor"))
 
+# Run the ingestor
 ingestion()
 ```
+
+To run the above example run the following command after populating your `.env` file:
+
+```bash
+REPOSITORY_PATH=/tmp/repository uv run examples/doc.py
+```
+
+The documentation will be generated in [examples/doc.md](examples/doc.md).
 
 ## Responsible AI Guidelines
 

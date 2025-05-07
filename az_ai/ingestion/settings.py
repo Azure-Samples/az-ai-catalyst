@@ -23,10 +23,26 @@ class IngestionSettings(BaseSettings):
 
     azure_ai_project_connection_string: str
     azure_ai_endpoint: str = Field(validation_alias=AliasChoices("azure_ai_endpoint", "azure_openai_endpoint"))
+    azure_ai_content_understanding_endpoint: str = Field(
+        description="The endpoint to use for the Content Understanding endpoint",
+    )
+    azure_ai_content_understanding_api_version: str = Field(
+        default="2024-12-01-preview",
+        description="The API version to use for the Content Understanding endpoint",
+    )
+    azure_ai_document_intelligence_endpoint: str = Field(
+        default_factory=lambda data: data['azure_ai_endpoint'],
+        description="The endpoint to use for the Document Intelligence endpoint",
+    )
+    azure_ai_document_intelligence_api_version: str = Field(
+        default="2024-11-30",
+        description="The API version to use for the Document Intelligence endpoint",
+    )
     azure_openai_api_version: str = Field(
         validation_alias=AliasChoices("openai_api_version", "azure_openai_api_version")
     )
     azure_ai_search_endpoint: str = Field(validation_alias=AliasChoices("search_endpoint", "azure_ai_search_endpoint"))
+    azure_ai_endpoint: str = Field(validation_alias=AliasChoices("azure_ai_endpoint", "azure_openai_endpoint"))
 
     model_config = SettingsConfigDict(
         env_file=".env",

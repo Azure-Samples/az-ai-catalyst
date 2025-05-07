@@ -325,7 +325,6 @@ def embed(
 Path("examples/itsarag.md").write_text(markdown(ingestion, "It's a RAG Ingestor"))
 
 # execute the ingestion pipeline
-
 mlflow.set_experiment("itsarag")
 with mlflow.start_run():
     mlflow.log_params(settings.as_params())
