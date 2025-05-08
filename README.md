@@ -12,12 +12,12 @@ The catalyst processor is designed to be flexible and extensible, allowing you t
 
 Ultimately we want this framework to:
 
-- Designed for simplicity and ease of use
-- Highly flexible and customizable
-- Includes native integration with Azure OpenAI Services
-- Automatically resumes data document processing from the point of failure
-- Offers built-in tools for managing settings
-- Provides a comprehensive set of ready-to-use operations
+- Be designed for simplicity and ease of use
+- Be highly flexible and customizable
+- Include native integration with Azure OpenAI Services
+- Automatically resume data document processing from the point of failure
+- Offer built-in tools for managing settings
+- Provide a comprehensive set of ready-to-use operations
 
 
 > [!WARNING]
@@ -138,6 +138,16 @@ REPOSITORY_PATH=/tmp/repository uv run examples/doc.py
 ```
 
 The documentation will be generated in [examples/doc.md](examples/doc.md).
+
+## Roadmap
+
+- Support for reasoning models
+- Support for structured output
+- Usage/cost summarization for easy cost estimations
+- Support for multi-agentic document processing
+- Support for MCP steps (client)
+- Available as an MCP server
+- Smart "Catalyst" generation
 
 ## Responsible AI Guidelines
 
