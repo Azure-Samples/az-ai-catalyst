@@ -2,13 +2,13 @@ from pathlib import Path
 
 import pytest
 
-from az_ai.ingestion import Document, Fragment, FragmentSelector
-from az_ai.ingestion.repository import (
+from az_ai.catalyst import Document, Fragment, FragmentSelector
+from az_ai.catalyst.repository import (
     DuplicateFragmentError,
     FragmentNotFoundError,
     LocalRepository,
 )
-from az_ai.ingestion.schema import OperationsLogEntry
+from az_ai.catalyst.schema import OperationsLogEntry
 
 
 @pytest.fixture

@@ -7,7 +7,7 @@ from azure.ai.documentintelligence.models import (
 )
 from PIL import Image
 
-from az_ai.ingestion import DocumentIntelligenceResult, Fragment, ImageFragment
+from az_ai.catalyst import DocumentIntelligenceResult, Fragment, ImageFragment
 
 logger = logging.getLogger(__name__)
 

@@ -1,10 +1,11 @@
 [project]
-name = "az-ai-ingestion"
+name = "az-ai-catalyst"
 version = "0.1.0"
-description = "Add your description here"
+description = "AZ AI Catalyst : multi-agentic & reasoning document processing"
 readme = "README.md"
 authors = [
-    { name = "Dominique Broeglin", email = "dominique.broeglin@microsoft.com" }
+    { name = "Dominique Broeglin", email = "dominique.broeglin@microsoft.com" },
+    { name = "Evgeny Minkevich", email = "evgeny.minkevich@microsoft.com" }
 ]
 requires-python = ">=3.12"
 
@@ -29,7 +30,7 @@ dependencies = [
 ]
 
 [project.scripts]
-az-ai-ingestion = "az_ai.ingestion:app"
+az-ai-catalyst = "az_ai.catalyst:app"
 
 [build-system]
 requires = ["hatchling"]
@@ -38,7 +39,7 @@ build-backend = "hatchling.build"
 [tool.hatch.build.targets.wheel]
 packages = ["az_ai"]
 
-[tool.az_ai.ingestion]
+[tool.az_ai.catalyst]
 #model_name = "gpt-4.1-mini-2025-04-14"
 
 [tool.pytest.ini_options]

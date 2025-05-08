@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-"It's a RAG" Ingestion Example: demonstrate how the It's a RAG pattern can be implemented 
-with az-ai-ingestion.
+"It's a RAG" Catalyst Example: demonstrate how the It's a RAG pattern can be implemented 
+with az-ai-catalyst.
 
 Source: https://github.com/francesco-sodano/itsarag
 """
@@ -30,10 +30,10 @@ from azure.search.documents.indexes.models import (
 )
 from mlflow.entities import SpanType
 
-import az_ai.ingestion
-from az_ai.ingestion import Chunk, Document, DocumentIntelligenceResult, Fragment, ImageFragment
-from az_ai.ingestion.helpers.documentation import markdown
-from az_ai.ingestion.settings import IngestionSettings
+import az_ai.catalyst
+from az_ai.catalyst import Chunk, Document, DocumentIntelligenceResult, Fragment, ImageFragment
+from az_ai.catalyst.helpers.documentation import markdown
+from az_ai.catalyst.settings import CatalystSettings
 
 # logging.basicConfig(level=logging.INFO)
 # logging.getLogger("azure.core").setLevel(logging.WARNING)
@@ -41,8 +41,7 @@ from az_ai.ingestion.settings import IngestionSettings
 
 mlflow.openai.autolog()
 
-
-class ItsaragSettings(IngestionSettings):
+class ItsaragSettings(CatalystSettings):
     model_name: str = "gpt-4.1-2025-04-14"
     index_name: str = "itsarag"
     temperature: float = 0.0
@@ -56,7 +55,7 @@ class ItsaragSettings(IngestionSettings):
         }
 
 
-settings = ItsaragSettings(repository_path="/tmp/itsarag_ingestion")
+settings = ItsaragSettings(repository_path="/tmp/itsarag_repo")
 
 fields = [
     SimpleField(
@@ -134,12 +133,12 @@ index = SearchIndex(
 )
 
 #
-# Ingestion workflow
+# Catalyst definition
 #
 
-ingestion = az_ai.ingestion.Ingestion(settings=settings)
+catalyst = az_ai.catalyst.Catalyst(settings=settings)
 
-result = ingestion.search_index_client.create_or_update_index(index=index)
+result = catalyst.search_index_client.create_or_update_index(index=index)
 
 
 class Figure(ImageFragment):
@@ -154,7 +153,7 @@ class MarkdownFragment(Fragment):
     pass
 
 
-@ingestion.operation()
+@catalyst.operation()
 @mlflow.trace(span_type=SpanType.CHAIN)
 def apply_document_intelligence(
     document: Document,
@@ -164,10 +163,10 @@ def apply_document_intelligence(
     Generate a fragment containing DocumentIntelligenceResult and Markdown
     """
 
-    poller = ingestion.document_intelligence_client.begin_analyze_document(
+    poller = catalyst.document_intelligence_client.begin_analyze_document(
         model_id="prebuilt-layout",
         body=AnalyzeDocumentRequest(
-            bytes_source=ingestion.repository.get(document).content,
+            bytes_source=catalyst.repository.get(document).content,
         ),
         features=[DocumentAnalysisFeature.OCR_HIGH_RESOLUTION] if document.mime_type == "application/pdf" else [],
         output_content_format=DocumentContentFormat.Markdown,
@@ -179,7 +178,7 @@ def apply_document_intelligence(
     )
 
 
-@ingestion.operation()
+@catalyst.operation()
 @mlflow.trace(span_type=SpanType.CHAIN)
 def extract_figures(
     di_result: DocumentIntelligenceResult,
@@ -190,12 +189,12 @@ def extract_figures(
     2. Create a new image fragment for each figure.
     3. Insert a figure reference in the document_intelligence_result fragment Markdown.
     """
-    from az_ai.ingestion.helpers.markdown import MarkdownFigureExtractor
+    from az_ai.catalyst.helpers.markdown import MarkdownFigureExtractor
 
     return MarkdownFigureExtractor().extract(di_result, Figure)
 
 
-@ingestion.operation()
+@catalyst.operation()
 @mlflow.trace(span_type=SpanType.CHAIN)
 def describe_figure(
     image: ImageFragment,
@@ -204,7 +203,7 @@ def describe_figure(
     1. Process the image fragment and generate a description.
     2. Create a new fragment with the description.
     """
-    from az_ai.ingestion.helpers.markdown import extract_code_block
+    from az_ai.catalyst.helpers.markdown import extract_code_block
 
     SYSTEM_CONTEXT = dedent("""\
         You are a helpful assistant that describe images in in vivid, precise details. 
@@ -222,7 +221,7 @@ def describe_figure(
         **IMPORTANT: Format your response as Markdown.**
     """)
 
-    response = ingestion.azure_openai_client.chat.completions.create(
+    response = catalyst.azure_openai_client.chat.completions.create(
         model=settings.model_name,
         messages=[
             {"role": "system", "content": SYSTEM_CONTEXT},
@@ -258,7 +257,7 @@ def describe_figure(
     )
 
 
-@ingestion.operation()
+@catalyst.operation()
 @mlflow.trace(span_type=SpanType.CHAIN)
 def split_markdown(
     document_intelligence_result: DocumentIntelligenceResult,
@@ -299,7 +298,7 @@ def split_markdown(
     return fragments
 
 
-@ingestion.operation()
+@catalyst.operation()
 @mlflow.trace(span_type=SpanType.CHAIN)
 def embed(
     fragments: Annotated[list[Fragment], {"label": ["md_fragment", "figure_description"]}],
@@ -307,11 +306,11 @@ def embed(
     """
     For each figures or MD fragment create an chunk fragment
     """
-    from az_ai.ingestion.helpers.azure_openai import create_embeddings
+    from az_ai.catalyst.helpers.azure_openai import create_embeddings
 
     return [
         create_embeddings(
-            ingestion=ingestion,
+            catalyst=catalyst,
             fragment=fragment,
             label="chunk",
             human_index = index + 1,
@@ -327,20 +326,20 @@ def embed(
     ]
 
 
-# Write the ingestion pipeline diagram to a markdown file
-Path("examples/itsarag.md").write_text(markdown(ingestion, "It's a RAG Ingestor", description=__doc__))
+# Write the catalyst pipeline diagram to a markdown file
+Path("examples/itsarag.md").write_text(markdown(catalyst, "It's a RAG Ingestor", description=__doc__))
 
-# execute the ingestion pipeline
+# execute the catalyst pipeline
 mlflow.set_experiment("itsarag")
 with mlflow.start_run():
     mlflow.log_params(settings.as_params())
-    # with mlflow.start_span("ingestion"):
-    ingestion.add_document_from_file("tests/data/human-nutrition-2020-short.pdf")
-    # ingestion.add_document_from_file("../itsarag/data/fsi/pdf/2023 FY GOOGL Short.pdf")
-    # ingestion.add_document_from_file("../itsarag/data/fsi/pdf/2023 FY GOOGL.pdf")
+    # with mlflow.start_span("catalyst"):
+    catalyst.add_document_from_file("tests/data/human-nutrition-2020-short.pdf")
+    # catalyst.add_document_from_file("../itsarag/data/fsi/pdf/2023 FY GOOGL Short.pdf")
+    # catalyst.add_document_from_file("../itsarag/data/fsi/pdf/2023 FY GOOGL.pdf")
 
-    ingestion()
-    ingestion.update_index()
+    catalyst()
+    catalyst.update_index()
 
 
 # Other ideas:
@@ -352,7 +351,7 @@ from figures:Fragment to text:Fragment call embedded
 
 # OR
 
-# @ingestion.transformation(
+# @catalyst.transformation(
 #        "from Document to document_intelligence_result:Fragment" \
 #        "use building_block document_intelligence"
 #        )

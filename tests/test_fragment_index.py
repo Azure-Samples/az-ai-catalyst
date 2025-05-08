@@ -1,10 +1,10 @@
 import pytest
 
-from az_ai.ingestion.repository import (
+from az_ai.catalyst.repository import (
     FragmentIndex,
     FragmentIndexEntry,
 )
-from az_ai.ingestion.schema import (
+from az_ai.catalyst.schema import (
     FragmentSelector,
     ImageFragment,
 )

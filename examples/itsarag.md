@@ -1,8 +1,8 @@
 # It's a RAG Ingestor
 ## Description
 
-"It's a RAG" Ingestion Example: demonstrate how the It's a RAG pattern can be implemented 
-with az-ai-ingestion.
+"It's a RAG" Catalyst Example: demonstrate how the It's a RAG pattern can be implemented 
+with az-ai-catalyst.
 
 Source: https://github.com/francesco-sodano/itsarag
 
@@ -53,7 +53,7 @@ Generate a fragment containing DocumentIntelligenceResult and Markdown
 <summary>Code</summary>
 
 ```python
-@ingestion.operation()
+@catalyst.operation()
 @mlflow.trace(span_type=SpanType.CHAIN)
 def apply_document_intelligence(
     document: Document,
@@ -63,10 +63,10 @@ def apply_document_intelligence(
     Generate a fragment containing DocumentIntelligenceResult and Markdown
     """
 
-    poller = ingestion.document_intelligence_client.begin_analyze_document(
+    poller = catalyst.document_intelligence_client.begin_analyze_document(
         model_id="prebuilt-layout",
         body=AnalyzeDocumentRequest(
-            bytes_source=ingestion.repository.get(document).content,
+            bytes_source=catalyst.repository.get(document).content,
         ),
         features=[DocumentAnalysisFeature.OCR_HIGH_RESOLUTION] if document.mime_type == "application/pdf" else [],
         output_content_format=DocumentContentFormat.Markdown,
@@ -92,7 +92,7 @@ its bounding box.
 <summary>Code</summary>
 
 ```python
-@ingestion.operation()
+@catalyst.operation()
 @mlflow.trace(span_type=SpanType.CHAIN)
 def extract_figures(
     di_result: DocumentIntelligenceResult,
@@ -103,7 +103,7 @@ def extract_figures(
     2. Create a new image fragment for each figure.
     3. Insert a figure reference in the document_intelligence_result fragment Markdown.
     """
-    from az_ai.ingestion.helpers.markdown import MarkdownFigureExtractor
+    from az_ai.catalyst.helpers.markdown import MarkdownFigureExtractor
 
     return MarkdownFigureExtractor().extract(di_result, Figure)
 
@@ -120,7 +120,7 @@ def extract_figures(
 <summary>Code</summary>
 
 ```python
-@ingestion.operation()
+@catalyst.operation()
 @mlflow.trace(span_type=SpanType.CHAIN)
 def describe_figure(
     image: ImageFragment,
@@ -129,7 +129,7 @@ def describe_figure(
     1. Process the image fragment and generate a description.
     2. Create a new fragment with the description.
     """
-    from az_ai.ingestion.helpers.markdown import extract_code_block
+    from az_ai.catalyst.helpers.markdown import extract_code_block
 
     SYSTEM_CONTEXT = dedent("""\
         You are a helpful assistant that describe images in in vivid, precise details. 
@@ -147,7 +147,7 @@ def describe_figure(
         **IMPORTANT: Format your response as Markdown.**
     """)
 
-    response = ingestion.azure_openai_client.chat.completions.create(
+    response = catalyst.azure_openai_client.chat.completions.create(
         model=settings.model_name,
         messages=[
             {"role": "system", "content": SYSTEM_CONTEXT},
@@ -195,7 +195,7 @@ def describe_figure(
 <summary>Code</summary>
 
 ```python
-@ingestion.operation()
+@catalyst.operation()
 @mlflow.trace(span_type=SpanType.CHAIN)
 def split_markdown(
     document_intelligence_result: DocumentIntelligenceResult,
@@ -247,7 +247,7 @@ For each figures or MD fragment create an chunk fragment
 <summary>Code</summary>
 
 ```python
-@ingestion.operation()
+@catalyst.operation()
 @mlflow.trace(span_type=SpanType.CHAIN)
 def embed(
     fragments: Annotated[list[Fragment], {"label": ["md_fragment", "figure_description"]}],
@@ -255,11 +255,11 @@ def embed(
     """
     For each figures or MD fragment create an chunk fragment
     """
-    from az_ai.ingestion.helpers.azure_openai import create_embeddings
+    from az_ai.catalyst.helpers.azure_openai import create_embeddings
 
     return [
         create_embeddings(
-            ingestion=ingestion,
+            catalyst=catalyst,
             fragment=fragment,
             label="chunk",
             human_index = index + 1,

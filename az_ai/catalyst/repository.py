@@ -4,7 +4,7 @@ from urllib import request
 
 from pydantic import BaseModel
 
-from az_ai.ingestion.schema import (
+from az_ai.catalyst.schema import (
     Fragment,
     FragmentSelector,
     OperationsLog,

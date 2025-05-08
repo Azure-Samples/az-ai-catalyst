@@ -14,7 +14,7 @@ from pydantic_settings import (
 # TODO: implement load_azd_env
 
 
-class IngestionSettings(BaseSettings):
+class CatalystSettings(BaseSettings):
     repository_path: Path
     index_name: str | None = Field(
         default=None,
@@ -47,7 +47,7 @@ class IngestionSettings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=".env",
         pyproject_toml_depth=5,
-        pyproject_toml_table_header=("tool", "az_ai", "ingestion"),
+        pyproject_toml_table_header=("tool", "az_ai", "catalyst"),
         extra="ignore",
     )
 

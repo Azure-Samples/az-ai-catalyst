@@ -18,10 +18,10 @@ from azure.identity import DefaultAzureCredential, get_bearer_token_provider
 from azure.search.documents import SearchClient
 from azure.search.documents.indexes import SearchIndexClient
 
-from az_ai.ingestion.helpers.content_understanding_client import AzureContentUnderstandingClient
-from az_ai.ingestion.repository import LocalRepository, Repository
-from az_ai.ingestion.runner import IngestionRunner, OperationError
-from az_ai.ingestion.schema import (
+from az_ai.catalyst.helpers.content_understanding_client import AzureContentUnderstandingClient
+from az_ai.catalyst.repository import LocalRepository, Repository
+from az_ai.catalyst.runner import CatalystRunner, OperationError
+from az_ai.catalyst.schema import (
     CommandFunctionType,
     Document,
     Fragment,
@@ -30,19 +30,19 @@ from az_ai.ingestion.schema import (
     OperationOutputSpec,
     OperationSpec,
 )
-from az_ai.ingestion.settings import IngestionSettings
+from az_ai.catalyst.settings import CatalystSettings
 
 logger = logging.getLogger(__name__)
 
 
-class Ingestion:
-    def __init__(self, repository: Repository = None, settings: IngestionSettings = None):
-        self.settings = settings or IngestionSettings()
+class Catalyst:
+    def __init__(self, repository: Repository = None, settings: CatalystSettings = None):
+        self.settings = settings or CatalystSettings()
         self.repository = repository or LocalRepository(path=self.settings.repository_path)
         self._operations: dict[str, OperationSpec] = {}
 
     def __call__(self, *args, **kwargs):
-        runner = IngestionRunner(self, self.repository)
+        runner = CatalystRunner(self, self.repository)
 
         runner.run(*args, **kwargs)
 

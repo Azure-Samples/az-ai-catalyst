@@ -7,22 +7,22 @@ from azure.ai.documentintelligence.models import (
     DocumentContentFormat,
 )
 
-import az_ai.ingestion
-from az_ai.ingestion import Document, DocumentIntelligenceResult
-from az_ai.ingestion.helpers.documentation import markdown
+import az_ai.catalyst
+from az_ai.catalyst import Document, DocumentIntelligenceResult
+from az_ai.catalyst.helpers.documentation import markdown
 
-ingestion = az_ai.ingestion.Ingestion()
+catalyst = az_ai.catalyst.Catalyst()
 
-ingestion.add_document_from_file("tests/data/test.pdf")
+catalyst.add_document_from_file("tests/data/test.pdf")
 
-@ingestion.operation()
+@catalyst.operation()
 def apply_document_intelligence(
     document: Document,
 ) -> Annotated[DocumentIntelligenceResult, "document_intelligence_result"]:
     """
     Apply Document Intelligence to the document and return a fragment with the result.
     """
-    poller = ingestion.document_intelligence_client.begin_analyze_document(
+    poller = catalyst.document_intelligence_client.begin_analyze_document(
         model_id="prebuilt-layout",
         body=AnalyzeDocumentRequest(
             bytes_source=document.content,
@@ -39,7 +39,7 @@ def apply_document_intelligence(
     )
 
 # Write the ingestor's diagram to a markdown file
-Path("examples/doc.md").write_text(markdown(ingestion, "Sample Ingestor"))
+Path("examples/doc.md").write_text(markdown(catalyst, "Sample Ingestor"))
 
 # Run the ingestor
-ingestion()
+catalyst()

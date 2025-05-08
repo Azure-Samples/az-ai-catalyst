@@ -24,7 +24,7 @@ Apply Content Understanding to the document and return a fragment with the resul
 <summary>Code</summary>
 
 ```python
-@ingestion.operation()
+@catalyst.operation()
 def apply_content_understanding(
     document: Document,
 ) -> Annotated[Fragment, "content_understanding_result"]:
@@ -69,14 +69,14 @@ def apply_content_understanding(
     }
 
     # Delete the analyzer if it exists and re-created it.
-    response = ingestion.content_understanding_client.delete_analyzer(ANALYZER_ID)
-    response = ingestion.content_understanding_client.begin_create_analyzer(
+    response = catalyst.content_understanding_client.delete_analyzer(ANALYZER_ID)
+    response = catalyst.content_understanding_client.begin_create_analyzer(
         ANALYZER_ID, analyzer_template=ANALYZER_TEMPLATE
     )
-    result = ingestion.content_understanding_client.poll_result(response)
+    result = catalyst.content_understanding_client.poll_result(response)
 
-    response = ingestion.content_understanding_client.begin_analyze(ANALYZER_ID, file_location=document.content_path())
-    result = ingestion.content_understanding_client.poll_result(response)
+    response = catalyst.content_understanding_client.begin_analyze(ANALYZER_ID, file_location=document.content_path())
+    result = catalyst.content_understanding_client.poll_result(response)
     content = result["result"]["contents"][0]
 
     return Fragment.with_source(

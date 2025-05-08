@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from az_ai.ingestion import Document, Fragment, FragmentRelationships
+from az_ai.catalyst import Document, Fragment, FragmentRelationships
 
 
 @pytest.fixture

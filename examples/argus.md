@@ -1,9 +1,8 @@
 # Argus Ingestor
 ## Description
 
-
-Argus Ingestion Example: demonstrate how the Argus pattern can be implemented 
-with az-ai-ingestion.
+Argus Catalyst Example: demonstrate how the Argus pattern can be implemented 
+with az-ai-catalyst.
 
 Source: https://github.com/Azure-Samples/ARGUS
 
@@ -55,7 +54,7 @@ Generate a fragment containing DocumentIntelligenceResult and Markdown
 <summary>Code</summary>
 
 ```python
-@ingestion.operation()
+@catalyst.operation()
 @mlflow.trace(span_type=SpanType.CHAIN)
 def apply_document_intelligence(
     document: Document,
@@ -64,7 +63,7 @@ def apply_document_intelligence(
     Get the PDF and apply DocumentIntelligence
     Generate a fragment containing DocumentIntelligenceResult and Markdown
     """
-    poller = ingestion.document_intelligence_client.begin_analyze_document(
+    poller = catalyst.document_intelligence_client.begin_analyze_document(
         model_id="prebuilt-layout",
         body=AnalyzeDocumentRequest(
             bytes_source=document.content,
@@ -90,7 +89,7 @@ def apply_document_intelligence(
 <summary>Code</summary>
 
 ```python
-@ingestion.operation()
+@catalyst.operation()
 @mlflow.trace(span_type=SpanType.CHAIN)
 def split_to_page_images(
     document: Document,
@@ -137,7 +136,7 @@ def split_to_page_images(
 <summary>Code</summary>
 
 ```python
-@ingestion.operation()
+@catalyst.operation()
 @mlflow.trace(span_type=SpanType.CHAIN)
 def extract_summary(
     di_result: DocumentIntelligenceResult,
@@ -156,7 +155,7 @@ def extract_summary(
         {"role": "user", "content": di_result.content_as_str()},
     ]
 
-    response = ingestion.azure_openai_client.chat.completions.create(
+    response = catalyst.azure_openai_client.chat.completions.create(
         model="gpt-4.1-2025-04-14", messages=messages, seed=0
     )
 
@@ -185,7 +184,7 @@ def extract_summary(
 <summary>Code</summary>
 
 ```python
-@ingestion.operation()
+@catalyst.operation()
 @mlflow.trace(span_type=SpanType.CHAIN)
 def apply_llm_to_pages(
     di_result: DocumentIntelligenceResult, page_images: list[ImageFragment]
@@ -198,7 +197,7 @@ def apply_llm_to_pages(
 
     system_context = EXTRACTION_SYSTEM_PROMPT.format(
         prompt=settings.extraction_prompt,
-        json_schema=ingestion.settings.json_schema,
+        json_schema=catalyst.settings.json_schema,
     )
     messages = [
         {"role": "system", "content": system_context},
@@ -214,7 +213,7 @@ def apply_llm_to_pages(
         },
     ]
 
-    response = ingestion.azure_openai_client.chat.completions.create(
+    response = catalyst.azure_openai_client.chat.completions.create(
         model=settings.model_name,
         messages=messages,
         temperature=settings.temperature,
@@ -244,7 +243,7 @@ def apply_llm_to_pages(
 <summary>Code</summary>
 
 ```python
-@ingestion.operation()
+@catalyst.operation()
 @mlflow.trace(span_type=SpanType.CHAIN)
 def evaluate_with_llm(
     extraction: Extraction, page_images: list[ImageFragment]
@@ -255,7 +254,7 @@ def evaluate_with_llm(
     3. Extract the result into an extraction fragment
     """
 
-    system_message = EVALUATION_SYSTEM_PROMPT.format(json_schema=ingestion.settings.json_schema)
+    system_message = EVALUATION_SYSTEM_PROMPT.format(json_schema=catalyst.settings.json_schema)
     messages = [
         {"role": "system", "content": system_message},
         {
@@ -270,7 +269,7 @@ def evaluate_with_llm(
         },
     ]
 
-    response = ingestion.azure_openai_client.chat.completions.create(
+    response = catalyst.azure_openai_client.chat.completions.create(
         model=settings.model_name, messages=messages, seed=0
     )
 

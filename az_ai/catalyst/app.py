@@ -4,9 +4,9 @@ from typing import Annotated
 import typer
 from rich.console import Console
 
-from az_ai.ingestion.helpers.rich import fragment_as_table
-from az_ai.ingestion.repository import LocalRepository
-from az_ai.ingestion.schema import FragmentSelector
+from az_ai.catalyst.helpers.rich import fragment_as_table
+from az_ai.catalyst.repository import LocalRepository
+from az_ai.catalyst.schema import FragmentSelector
 
 app = typer.Typer(no_args_is_help=True)
 

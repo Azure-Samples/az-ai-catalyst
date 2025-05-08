@@ -9,16 +9,16 @@ from azure.ai.documentintelligence.models import (
     DocumentContentFormat,
 )
 
-import az_ai.ingestion
-from az_ai.ingestion import Document, DocumentIntelligenceResult, Fragment
-from az_ai.ingestion.helpers.documentation import markdown
+import az_ai.catalyst
+from az_ai.catalyst import Document, DocumentIntelligenceResult, Fragment
+from az_ai.catalyst.helpers.documentation import markdown
 
-ingestion = az_ai.ingestion.Ingestion()
+catalyst = az_ai.catalyst.Catalyst()
 
-ingestion.add_document_from_file("tests/data/Drug_Prescription_form.pdf")
+catalyst.add_document_from_file("tests/data/Drug_Prescription_form.pdf")
 
 
-@ingestion.operation()
+@catalyst.operation()
 def apply_content_understanding(
     document: Document,
 ) -> Annotated[Fragment, "content_understanding_result"]:
@@ -63,14 +63,14 @@ def apply_content_understanding(
     }
 
     # Delete the analyzer if it exists and re-created it.
-    response = ingestion.content_understanding_client.delete_analyzer(ANALYZER_ID)
-    response = ingestion.content_understanding_client.begin_create_analyzer(
+    response = catalyst.content_understanding_client.delete_analyzer(ANALYZER_ID)
+    response = catalyst.content_understanding_client.begin_create_analyzer(
         ANALYZER_ID, analyzer_template=ANALYZER_TEMPLATE
     )
-    result = ingestion.content_understanding_client.poll_result(response)
+    result = catalyst.content_understanding_client.poll_result(response)
 
-    response = ingestion.content_understanding_client.begin_analyze(ANALYZER_ID, file_location=document.content_path())
-    result = ingestion.content_understanding_client.poll_result(response)
+    response = catalyst.content_understanding_client.begin_analyze(ANALYZER_ID, file_location=document.content_path())
+    result = catalyst.content_understanding_client.poll_result(response)
     content = result["result"]["contents"][0]
 
     return Fragment.with_source(
@@ -87,7 +87,7 @@ def apply_content_understanding(
 
 
 # Write the ingestor's diagram to a markdown file
-Path("examples/preview.md").write_text(markdown(ingestion, "Preview Features Ingestor"))
+Path("examples/preview.md").write_text(markdown(catalyst, "Preview Features Ingestor"))
 
 # Run the ingestor
-ingestion()
+catalyst()

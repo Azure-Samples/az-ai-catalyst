@@ -7,7 +7,7 @@ from rich.rule import Rule
 from rich.table import Column, Table, box
 from rich.text import Text
 
-from az_ai.ingestion.schema import Fragment
+from az_ai.catalyst.schema import Fragment
 
 
 def fragment_as_table(fragment: Fragment) -> Panel:

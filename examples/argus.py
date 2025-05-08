@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Argus Ingestion Example: demonstrate how the Argus pattern can be implemented 
-with az-ai-ingestion.
+Argus Catalyst Example: demonstrate how the Argus pattern can be implemented 
+with az-ai-catalyst.
 
 Source: https://github.com/Azure-Samples/ARGUS
 """
@@ -16,17 +16,17 @@ from azure.ai.documentintelligence.models import (
 )
 from mlflow.entities import SpanType
 
-import az_ai.ingestion
-from az_ai.ingestion import Document, DocumentIntelligenceResult, Fragment, ImageFragment, IngestionSettings
-from az_ai.ingestion.helpers.documentation import markdown
-from az_ai.ingestion.schema import FragmentSelector
+import az_ai.catalyst
+from az_ai.catalyst import Document, DocumentIntelligenceResult, Fragment, ImageFragment, CatalystSettings
+from az_ai.catalyst.helpers.documentation import markdown
+from az_ai.catalyst.schema import FragmentSelector
 
 # logging.basicConfig(level=logging.INFO)
 # logging.getLogger("azure.core").setLevel(logging.WARNING)
 # logging.getLogger("azure.identity").setLevel(logging.WARNING)
 
 
-class ArgusSettings(IngestionSettings):
+class ArgusSettings(CatalystSettings):
     model_name: str = "gpt-4.1-2025-04-14"
     temperature: float = 0.0
     json_schema: str = "{}"
@@ -39,15 +39,15 @@ class ArgusSettings(IngestionSettings):
         }
 
 
-settings = ArgusSettings(repository_path="/tmp/argus_ingestion")
+settings = ArgusSettings(repository_path="/tmp/argus_repo")
 
 #
-# Ingestion workflow
+# Catalyst definition
 #
 
-ingestion = az_ai.ingestion.Ingestion(settings=settings)
+catalyst = az_ai.catalyst.Catalyst(settings=settings)
 
-ingestion.add_document_from_file("tests/data/Drug_Prescription_form.pdf")
+catalyst.add_document_from_file("tests/data/Drug_Prescription_form.pdf")
 
 
 class Summary(Fragment):
@@ -62,7 +62,7 @@ class ExtractionEvaluation(Fragment):
     pass
 
 
-@ingestion.operation()
+@catalyst.operation()
 @mlflow.trace(span_type=SpanType.CHAIN)
 def apply_document_intelligence(
     document: Document,
@@ -71,7 +71,7 @@ def apply_document_intelligence(
     Get the PDF and apply DocumentIntelligence
     Generate a fragment containing DocumentIntelligenceResult and Markdown
     """
-    poller = ingestion.document_intelligence_client.begin_analyze_document(
+    poller = catalyst.document_intelligence_client.begin_analyze_document(
         model_id="prebuilt-layout",
         body=AnalyzeDocumentRequest(
             bytes_source=document.content,
@@ -86,7 +86,7 @@ def apply_document_intelligence(
     )
 
 
-@ingestion.operation()
+@catalyst.operation()
 @mlflow.trace(span_type=SpanType.CHAIN)
 def split_to_page_images(
     document: Document,
@@ -121,7 +121,7 @@ def split_to_page_images(
     return results
 
 
-@ingestion.operation()
+@catalyst.operation()
 @mlflow.trace(span_type=SpanType.CHAIN)
 def extract_summary(
     di_result: DocumentIntelligenceResult,
@@ -140,7 +140,7 @@ def extract_summary(
         {"role": "user", "content": di_result.content_as_str()},
     ]
 
-    response = ingestion.azure_openai_client.chat.completions.create(
+    response = catalyst.azure_openai_client.chat.completions.create(
         model="gpt-4.1-2025-04-14", messages=messages, seed=0
     )
 
@@ -156,7 +156,7 @@ def extract_summary(
     )
 
 
-@ingestion.operation()
+@catalyst.operation()
 @mlflow.trace(span_type=SpanType.CHAIN)
 def apply_llm_to_pages(
     di_result: DocumentIntelligenceResult, page_images: list[ImageFragment]
@@ -169,7 +169,7 @@ def apply_llm_to_pages(
 
     system_context = EXTRACTION_SYSTEM_PROMPT.format(
         prompt=settings.extraction_prompt,
-        json_schema=ingestion.settings.json_schema,
+        json_schema=catalyst.settings.json_schema,
     )
     messages = [
         {"role": "system", "content": system_context},
@@ -185,7 +185,7 @@ def apply_llm_to_pages(
         },
     ]
 
-    response = ingestion.azure_openai_client.chat.completions.create(
+    response = catalyst.azure_openai_client.chat.completions.create(
         model=settings.model_name,
         messages=messages,
         temperature=settings.temperature,
@@ -202,7 +202,7 @@ def apply_llm_to_pages(
     )
 
 
-@ingestion.operation()
+@catalyst.operation()
 @mlflow.trace(span_type=SpanType.CHAIN)
 def evaluate_with_llm(
     extraction: Extraction, page_images: list[ImageFragment]
@@ -213,7 +213,7 @@ def evaluate_with_llm(
     3. Extract the result into an extraction fragment
     """
 
-    system_message = EVALUATION_SYSTEM_PROMPT.format(json_schema=ingestion.settings.json_schema)
+    system_message = EVALUATION_SYSTEM_PROMPT.format(json_schema=catalyst.settings.json_schema)
     messages = [
         {"role": "system", "content": system_message},
         {
@@ -228,7 +228,7 @@ def evaluate_with_llm(
         },
     ]
 
-    response = ingestion.azure_openai_client.chat.completions.create(
+    response = catalyst.azure_openai_client.chat.completions.create(
         model=settings.model_name, messages=messages, seed=0
     )
 
@@ -313,32 +313,32 @@ Here is the JSON schema template that was used for the extraction:
 {json_schema}
 """
 
-# Write the ingestion pipeline diagram to a markdown file
-Path("examples/argus.md").write_text(markdown(ingestion, "Argus Ingestor", description=__doc__))
+# Write the catalyst pipeline diagram to a markdown file
+Path("examples/argus.md").write_text(markdown(catalyst, "Argus Ingestor", description=__doc__))
 
 
 mlflow.set_experiment("argus")
 with mlflow.start_run():
     mlflow.log_params(settings.as_params())
-    ingestion()
+    catalyst()
 
-    for fragment in ingestion.repository.find(
+    for fragment in catalyst.repository.find(
         FragmentSelector(fragment_type="Fragment", labels=["extraction_evaluation", "extraction"])
     ):
-        mlflow.log_artifact(ingestion.repository.human_content_path(fragment))
+        mlflow.log_artifact(catalyst.repository.human_content_path(fragment))
 
 #
 # Possible improvements:
 #
 
-# @ingestion.operation()
+# @catalyst.operation()
 # def apply_llm_to_pages(
 #     document_intelligence_result: Fragment,
 #     images: Annotated[list[Fragment], {"label": "page_image"}],
 # ) -> Annotated[Fragment, "extraction"]:
 
 
-# @ingestion.operation()
+# @catalyst.operation()
 # def apply_llm_to_pages(
 #     document_intelligence_result: Fragment,
 #     page_images: list[Fragment],

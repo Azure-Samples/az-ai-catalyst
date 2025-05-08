@@ -1,12 +1,12 @@
-# AZ AI Ingestion Processor (Experimental)
+# AZ AI Catalyst (Experimental)
 
-Experimental __Ingestion framework__ to make it easier to build ingestion pipelines for Azure OpenAI Services.
+Experimental __Document Processing Framework__ to make it easier to build ingestion or document analysis pipelines for Azure OpenAI Services.
 
 ## What is it?
 
-The ingestion processor is a framework to build ingestion pipelines for Azure OpenAI Services. It allows you to define a series of operations that can be applied to documents, and it handles the execution of those operations in the correct order.
+The catalyst processor is a framework to build document processing pipelines for Azure OpenAI Services. It allows you to define a series of operations that can be applied to documents, and it handles the execution of those operations in the correct order.
 
-The ingestion processor is designed to be flexible and extensible, allowing you to define your own operations and customize the behavior of the framework to suit your needs.
+The catalyst processor is designed to be flexible and extensible, allowing you to define your own operations and customize the behavior of the framework to suit your needs.
 
 ## Why use it?
 
@@ -15,7 +15,7 @@ Ultimately we want this framework to:
 - Designed for simplicity and ease of use
 - Highly flexible and customizable
 - Includes native integration with Azure OpenAI Services
-- Automatically resumes data ingestion from the point of failure
+- Automatically resumes data document processing from the point of failure
 - Offers built-in tools for managing settings
 - Provides a comprehensive set of ready-to-use operations
 
@@ -45,10 +45,10 @@ uv run examples/itsarag.py
 > [!NOTE]
 > `itsarag.py` also generates a Mermaid diagram of its graph in [examples/itsarag.md](examples/itsarag.md).
 
-To visualize the processed fragments you can then use the AZ AI Ingestion CLI:
+To visualize the processed fragments you can then use the AZ AI Catalyst CLI:
 
 ```bash
-uv run az-ai-ingestion show --repository /tmp/itsarag_ingestion/
+uv run az-ai-catalyst human --repository /tmp/itsarag_repo/
 ```
 
 #### Argus example
@@ -60,10 +60,10 @@ uv run examples/argus.py
 > [!NOTE]  
 > `argus.py` also generates a Mermaid diagram of its graph in [examples/argus.md](examples/argus.md).
 
-To visualize the processed fragments you can then use the AZ AI Ingestion CLI:
+To visualize the processed fragments you can then use the AZ AI Catalyst CLI:
 
 ```bash
-uv run az-ai-ingestion show --repository /tmp/argus_ingestion/
+uv run az-ai-catalyst human --repository /tmp/argus_repo/
 ```
 
 ### Run the tests
@@ -82,7 +82,7 @@ Then open your browser and go to [http://localhost:5000](http://localhost:5000).
 
 ### Simple Custom Processor Example
 
-Here is a simple example of how to use the ingestion processor.
+Here is a simple example of how to use Catalyst:
 ```python
 from pathlib import Path
 from typing import Annotated
@@ -93,22 +93,22 @@ from azure.ai.documentintelligence.models import (
     DocumentContentFormat,
 )
 
-import az_ai.ingestion
-from az_ai.ingestion import Document, DocumentIntelligenceResult
-from az_ai.ingestion.helpers.documentation import markdown
+import az_ai.catalyst
+from az_ai.catalyst import Document, DocumentIntelligenceResult
+from az_ai.catalyst.helpers.documentation import markdown
 
-ingestion = az_ai.ingestion.Ingestion()
+catalyst = az_ai.catalyst.Catalyst()
 
-ingestion.add_document_from_file("tests/data/test.pdf")
+catalyst.add_document_from_file("tests/data/test.pdf")
 
-@ingestion.operation()
+@catalyst.operation()
 def apply_document_intelligence(
     document: Document,
 ) -> Annotated[DocumentIntelligenceResult, "document_intelligence_result"]:
     """
     Apply Document Intelligence to the document and return a fragment with the result.
     """
-    poller = ingestion.document_intelligence_client.begin_analyze_document(
+    poller = catalyst.document_intelligence_client.begin_analyze_document(
         model_id="prebuilt-layout",
         body=AnalyzeDocumentRequest(
             bytes_source=document.content,
@@ -125,10 +125,10 @@ def apply_document_intelligence(
     )
 
 # Write the ingestor's diagram to a markdown file
-Path("examples/doc.md").write_text(markdown(ingestion, "Sample Ingestor"))
+Path("examples/doc.md").write_text(markdown(catalyst, "Sample Processor"))
 
 # Run the ingestor
-ingestion()
+catalyst()
 ```
 
 To run the above example run the following command after populating your `.env` file:

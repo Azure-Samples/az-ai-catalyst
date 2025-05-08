@@ -3,9 +3,9 @@ import time
 from rich.console import Console
 from rich.markup import escape
 
-from az_ai.ingestion.helpers.rich import fragment_as_table
-from az_ai.ingestion.repository import Repository
-from az_ai.ingestion.schema import (
+from az_ai.catalyst.helpers.rich import fragment_as_table
+from az_ai.catalyst.repository import Repository
+from az_ai.catalyst.schema import (
     Fragment,
     OperationsLogEntry,
     OperationSpec,
@@ -16,26 +16,26 @@ class OperationError(Exception):
     pass
 
 
-class IngestionRunner:
-    def __init__(self, ingestion, repository: Repository = None):
-        self.ingestion = ingestion
-        self.repository = ingestion.repository
+class CatalystRunner:
+    def __init__(self, catalyst, repository: Repository = None):
+        self.catalyst = catalyst
+        self.repository = catalyst.repository
         self._console = Console()
 
     def run(self, *args, **kwargs):
         self._console.log(
-            f"Run ingestion pipeline with args: {kwargs}",
+            f"Run catalyst pipeline with args: {kwargs}",
         )
-        with self._console.status("Running ingestion pipeline...") as status:
+        with self._console.status("Running catalyst pipeline...") as status:
             try:
-                for operation in self.ingestion.operations().values():
+                for operation in self.catalyst.operations().values():
                     status.update(
                         f"Running {escape(str(operation))}...",
                         spinner="dots",
                     )
                     self._run_operation(operation)
             except Exception as e:
-                self._console.log(f"Error running ingestion pipeline: {e}")
+                self._console.log(f"Error running catalyst pipeline: {e}")
                 raise e
 
     def _run_operation(self, operation: OperationSpec):

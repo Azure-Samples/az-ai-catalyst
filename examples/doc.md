@@ -24,14 +24,14 @@ Apply Document Intelligence to the document and return a fragment with the resul
 <summary>Code</summary>
 
 ```python
-@ingestion.operation()
+@catalyst.operation()
 def apply_document_intelligence(
     document: Document,
 ) -> Annotated[DocumentIntelligenceResult, "document_intelligence_result"]:
     """
     Apply Document Intelligence to the document and return a fragment with the result.
     """
-    poller = ingestion.document_intelligence_client.begin_analyze_document(
+    poller = catalyst.document_intelligence_client.begin_analyze_document(
         model_id="prebuilt-layout",
         body=AnalyzeDocumentRequest(
             bytes_source=document.content,

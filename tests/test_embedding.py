@@ -2,11 +2,11 @@ from pathlib import Path
 
 import pytest
 
-from az_ai.ingestion import Chunk, Fragment
+from az_ai.catalyst import Chunk, Fragment
 
 METADATA = {
     "file_name": "test.pdf",
-    "file_path": "/home/user/az-ai-ingestion/tests/data/test.pdf",
+    "file_path": "/home/user/az-ai-catalyst/tests/data/test.pdf",
     "file_size": 92971,
     "mime_type": "chunk/pdf",
     "page_nb" : 1,

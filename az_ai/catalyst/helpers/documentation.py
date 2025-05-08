@@ -3,10 +3,10 @@ from inspect import getsource
 from itertools import chain
 from textwrap import dedent
 
-from az_ai.ingestion import Ingestion
+from az_ai.catalyst import Catalyst
 
 
-def markdown(ingestion: Ingestion, title: str, description: str = None) -> str:
+def markdown(catalyst: Catalyst, title: str, description: str = None) -> str:
     return "\n".join(
         [
             f"# {title}",
@@ -20,7 +20,7 @@ def markdown(ingestion: Ingestion, title: str, description: str = None) -> str:
             "---",
             f"title: {title}",
             "---",
-            mermaid(ingestion),
+            mermaid(catalyst),
             "```",
             "## Operations documentation",
         ]
@@ -29,20 +29,20 @@ def markdown(ingestion: Ingestion, title: str, description: str = None) -> str:
            "<details>\n<summary>Code</summary>\n\n"
            f"```python\n{getsource(operation.func)}\n```\n\n"
            "</details>\n"
-           for operation in ingestion.operations().values()]
+           for operation in catalyst.operations().values()]
     )
 
 
-def mermaid(ingestion: Ingestion) -> str:
+def mermaid(catalyst: Catalyst) -> str:
     """
-    Generate a mermaid diagram of the ingestion pipeline.
+    Generate a mermaid diagram of the catalyst pipeline.
     """
     input_boxes = OrderedDict()
     operation_boxes = OrderedDict()
     output_boxes = OrderedDict()
 
     # generate boxes for operations and outputs
-    for operation in ingestion.operations().values():
+    for operation in catalyst.operations().values():
         selector = operation.output_spec.selector()
         for label in selector.labels:
             output_boxes[
@@ -55,7 +55,7 @@ def mermaid(ingestion: Ingestion) -> str:
         operation_boxes[f"""    {operation.name}@{{ shape: rect, label: "{operation.name}" }}"""] = operation
 
     # generate boxes for inputs (based on existing outputs)
-    for operation in ingestion.operations().values():
+    for operation in catalyst.operations().values():
         for input in operation.input_specs:
             selector = input.selector()
             for output_selector in chain(output_boxes.values(), input_boxes.values()):
@@ -84,7 +84,7 @@ def mermaid(ingestion: Ingestion) -> str:
     diagram += [f"    {box[0]}{box[1]}" for box in output_boxes]
     diagram.append("")
 
-    for operation in ingestion.operations().values():
+    for operation in catalyst.operations().values():
         for input in operation.input_specs:
             selector = input.selector()
             multiple = "- \\* -" if input.multiple else ""

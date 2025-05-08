@@ -1,4 +1,4 @@
-from .ingestion import Ingestion
+from .catalyst import Catalyst
 from .runner import OperationError
 from .schema import (
     Chunk,
@@ -9,15 +9,15 @@ from .schema import (
     FragmentSelector,
     ImageFragment,
 )
-from .settings import IngestionSettings
+from .settings import CatalystSettings
 
 __all__ = [
     "Fragment",
     "Document",
     "DocumentIntelligenceResult"
     "ImageFragment",
-    "Ingestion",
-    "IngestionSettings",
+    "Catalyst",
+    "CatalystSettings",
     "Chunk",
     "FragmentSelector",
     "OperationError",

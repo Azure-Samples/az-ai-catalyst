@@ -1,5 +1,5 @@
 
-from az_ai.ingestion.schema import Document, Fragment, FragmentSelector
+from az_ai.catalyst.schema import Document, Fragment, FragmentSelector
 
 
 def test_fragment_selector():

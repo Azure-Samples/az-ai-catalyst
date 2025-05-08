@@ -3,30 +3,30 @@ from typing import Annotated
 
 import pytest
 
-from az_ai.ingestion import Document, Fragment, Ingestion, OperationError
-from az_ai.ingestion.repository import LocalRepository
-from az_ai.ingestion.schema import FragmentSelector
-from az_ai.ingestion.settings import IngestionSettings
+from az_ai.catalyst import Document, Fragment, Catalyst, OperationError
+from az_ai.catalyst.repository import LocalRepository
+from az_ai.catalyst.schema import FragmentSelector
+from az_ai.catalyst.settings import CatalystSettings
 
 
 @pytest.fixture(scope="function")
-def ingestion(tmpdir):
-    return Ingestion(settings=IngestionSettings(repository_path=Path(tmpdir)))
+def catalyst(tmpdir):
+    return Catalyst(settings=CatalystSettings(repository_path=Path(tmpdir)))
 
 @pytest.fixture(scope="function")
-def single_step_ingestion(ingestion):
-    @ingestion.operation()
+def single_step_catalyst(catalyst):
+    @catalyst.operation()
     def simple(input: Document) -> Annotated[Fragment, "output_label"]:
         return Fragment(
             id="output_id",
             label="output_label",
             metadata=input.metadata | { "extra_key": "extra_value" },
         )
-    return ingestion
+    return catalyst
 
 @pytest.fixture(scope="function")
-def two_step_ingestion(ingestion):
-    @ingestion.operation()
+def two_step_catalyst(catalyst):
+    @catalyst.operation()
     def simple(input: Document) -> Annotated[Fragment, "output_label"]:
         return Fragment(
             id="output_id",
@@ -34,7 +34,7 @@ def two_step_ingestion(ingestion):
             metadata=input.metadata | { "extra_key": "extra_value" },
         )
     
-    @ingestion.operation()
+    @catalyst.operation()
     def second(input: Annotated[Fragment, {'label': "output_label"}]) -> Annotated[Fragment, "second_output_label"]:
         return Fragment(
             id="second_id",
@@ -42,7 +42,7 @@ def two_step_ingestion(ingestion):
             metadata=input.metadata | { "extra_key2": "extra_value2" },
         )
 
-    return ingestion
+    return catalyst
 
 @pytest.fixture
 def document():
@@ -69,42 +69,42 @@ def repository(tmpdir, document, fragment):
 
 
 
-def test_single_ingestion(single_step_ingestion, document):
-    assert len(single_step_ingestion.repository.find()) == 0
-    single_step_ingestion.repository.store(document)
+def test_single_catalyst(single_step_catalyst, document):
+    assert len(single_step_catalyst.repository.find()) == 0
+    single_step_catalyst.repository.store(document)
 
-    single_step_ingestion()
+    single_step_catalyst()
 
-    fragment = single_step_ingestion.repository.get("output_id")
+    fragment = single_step_catalyst.repository.get("output_id")
     assert fragment.id == "output_id"
     assert fragment.label == "output_label"
     assert fragment.metadata == document.metadata | { "extra_key": "extra_value" }
 
-    assert len(single_step_ingestion.repository.find()) == 2
+    assert len(single_step_catalyst.repository.find()) == 2
 
-def test_double_ingestion(two_step_ingestion, document):
-    assert len(two_step_ingestion.repository.find()) == 0
-    two_step_ingestion.repository.store(document)
+def test_double_catalyst(two_step_catalyst, document):
+    assert len(two_step_catalyst.repository.find()) == 0
+    two_step_catalyst.repository.store(document)
 
-    two_step_ingestion()
+    two_step_catalyst()
 
-    fragment = two_step_ingestion.repository.get("output_id")
+    fragment = two_step_catalyst.repository.get("output_id")
     assert fragment.id == "output_id"
     assert fragment.label == "output_label"
     assert fragment.metadata == document.metadata | { "extra_key": "extra_value" }
 
-    fragment = two_step_ingestion.repository.get("second_id")
+    fragment = two_step_catalyst.repository.get("second_id")
     assert fragment.id == "second_id"
     assert fragment.label == "second_output_label"
     assert fragment.metadata == fragment.metadata | { "extra_key2": "extra_value2" }
 
-    assert len(two_step_ingestion.repository.find()) == 3
+    assert len(two_step_catalyst.repository.find()) == 3
 
 
-def test_return_is_compliant_with_signature(ingestion, document):
-    ingestion.repository.store(document)
+def test_return_is_compliant_with_signature(catalyst, document):
+    catalyst.repository.store(document)
     
-    @ingestion.operation()
+    @catalyst.operation()
     def simple(input: Document) -> Annotated[Fragment, "expected_label"]:
         return Fragment(
             id="output_id",
@@ -113,14 +113,14 @@ def test_return_is_compliant_with_signature(ingestion, document):
         )
 
     with pytest.raises(OperationError) as excinfo:
-        ingestion()
+        catalyst()
 
     assert "Non compliant Fragment returned" in str(excinfo.value)
 
 
-def test_processing_scope(ingestion):
-    doc1 = ingestion.repository.store(Document(label="doc1", parent_names=["doc1"]))
-    doc2 = ingestion.repository.store(Document(label="doc2", parent_names=["doc2"]))
+def test_processing_scope(catalyst):
+    doc1 = catalyst.repository.store(Document(label="doc1", parent_names=["doc1"]))
+    doc2 = catalyst.repository.store(Document(label="doc2", parent_names=["doc2"]))
 
     class Single(Fragment):
         pass
@@ -128,15 +128,15 @@ def test_processing_scope(ingestion):
     class Multi(Fragment):
         pass
 
-    doc1_single = ingestion.repository.store(Single.with_source(doc1, label="doc1_single"))
-    doc1_multi1 = ingestion.repository.store(Multi.with_source(doc1, label="doc1_multi1"))
-    doc1_multi2 = ingestion.repository.store(Multi.with_source(doc1, label="doc1_multi2"))
+    doc1_single = catalyst.repository.store(Single.with_source(doc1, label="doc1_single"))
+    doc1_multi1 = catalyst.repository.store(Multi.with_source(doc1, label="doc1_multi1"))
+    doc1_multi2 = catalyst.repository.store(Multi.with_source(doc1, label="doc1_multi2"))
 
-    doc2_single = ingestion.repository.store(Single.with_source(doc2, label="doc2_single"))
-    doc2_multi1 = ingestion.repository.store(Multi.with_source(doc2, label="doc2_multi1"))
-    doc2_multi2 = ingestion.repository.store(Multi.with_source(doc2, label="doc2_multi2"))
+    doc2_single = catalyst.repository.store(Single.with_source(doc2, label="doc2_single"))
+    doc2_multi1 = catalyst.repository.store(Multi.with_source(doc2, label="doc2_multi1"))
+    doc2_multi2 = catalyst.repository.store(Multi.with_source(doc2, label="doc2_multi2"))
 
-    @ingestion.operation()
+    @catalyst.operation()
     def op_same(
         single: Single,
         multi: list[Multi],
@@ -148,7 +148,7 @@ def test_processing_scope(ingestion):
             "multi2": multi[1].id,
         })
 
-    @ingestion.operation(scope="all")
+    @catalyst.operation(scope="all")
     def op_all(
         single: Single,
         multi: list[Multi],
@@ -159,9 +159,9 @@ def test_processing_scope(ingestion):
             "multi": set((multi[0].id, multi[1].id, multi[2].id, multi[3].id)),
         })
     
-    ingestion()
+    catalyst()
 
-    outputs = ingestion.repository.find(FragmentSelector(fragment_type="Fragment", labels=["output_same"]))
+    outputs = catalyst.repository.find(FragmentSelector(fragment_type="Fragment", labels=["output_same"]))
 
     assert len(outputs) == 2
     output1 = next(output for output in outputs if output.source_document_ref() == doc1.id)
@@ -176,7 +176,7 @@ def test_processing_scope(ingestion):
     assert output2.metadata["multi1"] == doc2_multi1.id
     assert output2.metadata["multi2"] == doc2_multi2.id
 
-    outputs = ingestion.repository.find(FragmentSelector(fragment_type="Fragment", labels=["output_all"]))
+    outputs = catalyst.repository.find(FragmentSelector(fragment_type="Fragment", labels=["output_all"]))
 
     assert len(outputs) == 2
     output1 = next(output for output in outputs if output.source_document_ref() == doc1.id)
