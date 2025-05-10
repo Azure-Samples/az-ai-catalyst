@@ -23,10 +23,10 @@ class CatalystSettings(BaseSettings):
 
     azure_ai_project_connection_string: str
     azure_ai_endpoint: str = Field(validation_alias=AliasChoices("azure_ai_endpoint", "azure_openai_endpoint"))
-    azure_ai_content_understanding_endpoint: str = Field(
+    azure_content_understanding_endpoint: str = Field(
         description="The endpoint to use for the Content Understanding endpoint",
     )
-    azure_ai_content_understanding_api_version: str = Field(
+    azure_content_understanding_api_version: str = Field(
         default="2024-12-01-preview",
         description="The API version to use for the Content Understanding endpoint",
     )

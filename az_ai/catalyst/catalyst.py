@@ -36,8 +36,14 @@ logger = logging.getLogger(__name__)
 
 
 class Catalyst:
-    def __init__(self, repository: Repository = None, settings: CatalystSettings = None):
-        self.settings = settings or CatalystSettings()
+    def __init__(self, repository: Repository = None, settings: CatalystSettings = None, repository_path: str | Path = None):
+        default_settings = {}
+        if repository_path:
+            if not isinstance(repository_path, Path):
+                repository_path = Path(repository_path)
+            default_settings["repository_path"] = repository_path
+            
+        self.settings = settings or CatalystSettings(**default_settings)
         self.repository = repository or LocalRepository(path=self.settings.repository_path)
         self._operations: dict[str, OperationSpec] = {}
 
@@ -154,6 +160,10 @@ class Catalyst:
         Get the document intelligence client.
         """
         if not hasattr(self, "_document_intelligence_client"):
+            if not self.settings.azure_ai_document_intelligence_endpoint:
+                raise OperationError("Azure AI Document Intelligence endpoint is not set.")
+            if not self.settings.azure_ai_document_intelligence_api_version:
+                raise OperationError("Azure AI Document Intelligence API version is not set.")
             self._document_intelligence_client = DocumentIntelligenceClient(
                 self.settings.azure_ai_document_intelligence_endpoint,
                 api_version=self.settings.azure_ai_document_intelligence_api_version,
@@ -204,8 +214,8 @@ class Catalyst:
         """
         if not hasattr(self, "_content_understanding_client"):
             self._content_understanding_client = AzureContentUnderstandingClient(
-                endpoint=self.settings.azure_ai_content_understanding_endpoint,
-                api_version=self.settings.azure_ai_content_understanding_api_version,
+                endpoint=self.settings.azure_content_understanding_endpoint,
+                api_version=self.settings.azure_content_understanding_api_version,
                 # Hack to get around analyzer creation not working with RBAC "Cognitive Services Contributor" role
                 subscription_key=self.azure_openai_client.api_key,
                 token_provider=get_bearer_token_provider(self.credential, "https://cognitiveservices.azure.com/.default"),
