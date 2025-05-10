@@ -18,6 +18,7 @@ from azure.ai.projects import AIProjectClient
 from azure.identity import DefaultAzureCredential, get_bearer_token_provider
 from azure.search.documents import SearchClient
 from azure.search.documents.indexes import SearchIndexClient
+from pydantic import ValidationError
 
 from az_ai.catalyst.azure_repository import AzureRepository
 from az_ai.catalyst.helpers.content_understanding_client import AzureContentUnderstandingClient
@@ -36,30 +37,46 @@ from az_ai.catalyst.settings import CatalystSettings
 
 logger = logging.getLogger(__name__)
 
+
+class CatalystInitializationError(RuntimeError):
+    def __init__(self, e: ValidationError):
+        message = ["Error initializing Catalyst:"]
+        for error in e.errors():
+            message.append(f"  - {error['loc'][-1].upper()}: {error['msg']}")
+        message.append("You can use environment variables like AZURE_AI_ENDPOINT.")
+        message.append("Alternatively you can also set them in .env, pyproject.toml or in the code.")
+        message.append("For more information, please refer to https://aka.ms/az-ai-catalyst/docs/SETTINGS.md")
+        super().__init__("\n".join(message))
+
+
 class Catalyst:
     def __init__(
-        self, repository: Repository = None, settings: CatalystSettings = None, repository_url: str = None
+        self,
+        repository: Repository = None,
+        settings_cls: CatalystSettings = CatalystSettings,
+        repository_url: str = None,
     ):
-
         override_settings = {}
-        if repository_url: # if repository_url is provided, it will override the settings
-            if settings:
-                settings.repository_url = repository_url
-            else:
-                override_settings["repository_url"] = repository_url
+        if repository_url:  # if repository_url is provided, it will override the settings
+            override_settings["repository_url"] = repository_url
 
-        self.settings = settings or CatalystSettings(**override_settings)
-        
+        try:
+            self.settings = settings_cls(**override_settings)
+        except ValidationError as e:
+            raise CatalystInitializationError(e) from None
+
         if repository:
             self.repository = repository
         else:
             parsed_url = urlparse(self.settings.repository_url)
             match parsed_url.scheme:
-                case '' | 'file':
+                case "" | "file":
                     self.repository = LocalRepository(path=parsed_url.path)
-                case 'https':
+                case "https":
                     if not self.settings.repository_container_name:
-                        raise ValueError("repository_container_name setting is mandatory for an Azure Storage repository")
+                        raise ValueError(
+                            "repository_container_name setting is mandatory for an Azure Storage repository"
+                        )
                     self.repository = AzureRepository(
                         url=self.settings.repository_url,
                         container_name=self.settings.repository_container_name,

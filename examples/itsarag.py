@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-"It's a RAG" Catalyst Example: demonstrate how the It's a RAG pattern can be implemented 
+"It's a RAG" Catalyst Example: demonstrate how the It's a RAG pattern can be implemented
 with az-ai-catalyst.
 
 Source: https://github.com/francesco-sodano/itsarag
@@ -41,6 +41,7 @@ from az_ai.catalyst.settings import CatalystSettings
 
 mlflow.openai.autolog()
 
+
 class ItsaragSettings(CatalystSettings):
     model_name: str = "gpt-4.1-2025-04-14"
     index_name: str = "itsarag"
@@ -55,90 +56,87 @@ class ItsaragSettings(CatalystSettings):
         }
 
 
-settings = ItsaragSettings(repository_url="/tmp/itsarag_repo")
-
-fields = [
-    SimpleField(
-        name="id",
-        type=SearchFieldDataType.String,
-        key=True,
-        sortable=True,
-        filterable=True,
-        facetable=True,
-        analyzer_name="keyword",
-    ),
-    SearchableField(
-        name="content",
-        type=SearchFieldDataType.String,
-        searchable=True,
-        analyzer_name="standard.lucene",
-    ),
-    SearchField(
-        name="vector",
-        type=SearchFieldDataType.Collection(SearchFieldDataType.Single),
-        hidden=True,
-        searchable=True,
-        filterable=False,
-        sortable=False,
-        facetable=False,
-        vector_search_dimensions=3072,
-        vector_search_profile_name="embedding_config",
-    ),
-    SimpleField(
-        name="page_number",
-        type=SearchFieldDataType.String,
-        filterable=True,
-        facetable=True,
-    ),
-    SimpleField(
-        name="file_name",
-        type=SearchFieldDataType.String,
-        filterable=True,
-        sortable=False,
-        facetable=True,
-    ),
-    SimpleField(
-        name="url",
-        type=SearchFieldDataType.String,
-        filterable=True,
-        sortable=False,
-        facetable=False,
-    ),
-    SimpleField(
-        name="data_url",
-        type="Edm.String",
-        searchable=False,
-        filterable=False,
-        facetable=False,
-        sortable=False,
-    ),
-]
-index = SearchIndex(
-    name=settings.index_name,
-    fields=fields,
-    vector_search=VectorSearch(
-        algorithms=[
-            HnswAlgorithmConfiguration(
-                name="hnsw_config",
-                parameters=HnswParameters(metric="cosine"),
-            )
-        ],
-        profiles=[
-            VectorSearchProfile(
-                name="embedding_config",
-                algorithm_configuration_name="hnsw_config",
-            ),
-        ],
-    ),
-)
-
 #
 # Catalyst definition
 #
 
-catalyst = az_ai.catalyst.Catalyst(settings=settings)
+catalyst = az_ai.catalyst.Catalyst(settings_cls=ItsaragSettings, repository_url="/tmp/itsarag_repo")
 
-result = catalyst.search_index_client.create_or_update_index(index=index)
+result = catalyst.search_index_client.create_or_update_index(
+    index=SearchIndex(
+        name=catalyst.settings.index_name,
+        fields=[
+            SimpleField(
+                name="id",
+                type=SearchFieldDataType.String,
+                key=True,
+                sortable=True,
+                filterable=True,
+                facetable=True,
+                analyzer_name="keyword",
+            ),
+            SearchableField(
+                name="content",
+                type=SearchFieldDataType.String,
+                searchable=True,
+                analyzer_name="standard.lucene",
+            ),
+            SearchField(
+                name="vector",
+                type=SearchFieldDataType.Collection(SearchFieldDataType.Single),
+                hidden=True,
+                searchable=True,
+                filterable=False,
+                sortable=False,
+                facetable=False,
+                vector_search_dimensions=3072,
+                vector_search_profile_name="embedding_config",
+            ),
+            SimpleField(
+                name="page_number",
+                type=SearchFieldDataType.String,
+                filterable=True,
+                facetable=True,
+            ),
+            SimpleField(
+                name="file_name",
+                type=SearchFieldDataType.String,
+                filterable=True,
+                sortable=False,
+                facetable=True,
+            ),
+            SimpleField(
+                name="url",
+                type=SearchFieldDataType.String,
+                filterable=True,
+                sortable=False,
+                facetable=False,
+            ),
+            SimpleField(
+                name="data_url",
+                type="Edm.String",
+                searchable=False,
+                filterable=False,
+                facetable=False,
+                sortable=False,
+            ),
+        ],
+        vector_search=VectorSearch(
+            algorithms=[
+                HnswAlgorithmConfiguration(
+                    name="hnsw_config",
+                    parameters=HnswParameters(metric="cosine"),
+                )
+            ],
+            profiles=[
+                VectorSearchProfile(
+                    name="embedding_config",
+                    algorithm_configuration_name="hnsw_config",
+                ),
+            ],
+        ),
+    )
+)
 
 
 class Figure(ImageFragment):
@@ -222,7 +220,7 @@ def describe_figure(
     """)
 
     response = catalyst.azure_openai_client.chat.completions.create(
-        model=settings.model_name,
+        model=catalyst.settings.model_name,
         messages=[
             {"role": "system", "content": SYSTEM_CONTEXT},
             {
@@ -241,8 +239,8 @@ def describe_figure(
                 ],
             },
         ],
-        temperature=settings.temperature,
-        max_tokens=settings.max_tokens,
+        temperature=catalyst.settings.temperature,
+        max_tokens=catalyst.settings.max_tokens,
     )
 
     return FigureDescription.with_source(
@@ -313,14 +311,14 @@ def embed(
             catalyst=catalyst,
             fragment=fragment,
             label="chunk",
-            human_index = index + 1,
+            human_index=index + 1,
             model="text-embedding-3-large",
             metadata={
                 "file_name": fragment.metadata["file_name"],
                 "page_number": fragment.metadata["page_number"],
                 "data_url": fragment.metadata.get("data_url", None),
                 "url": f"https://www.example.com/{fragment.metadata['file_name']}",
-            }
+            },
         )
         for index, fragment in enumerate(fragments)
     ]
@@ -332,7 +330,7 @@ Path("examples/itsarag.md").write_text(markdown(catalyst, "It's a RAG Ingestor",
 # execute the catalyst pipeline
 mlflow.set_experiment("itsarag")
 with mlflow.start_run():
-    mlflow.log_params(settings.as_params())
+    mlflow.log_params(catalyst.settings.as_params())
     # with mlflow.start_span("catalyst"):
     catalyst.add_document_from_file("tests/data/human-nutrition-2020-short.pdf")
     # catalyst.add_document_from_file("../itsarag/data/fsi/pdf/2023 FY GOOGL Short.pdf")

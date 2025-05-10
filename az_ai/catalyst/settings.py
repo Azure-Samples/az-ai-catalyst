@@ -50,8 +50,9 @@ class CatalystSettings(BaseSettings):
         description="The API version to use for the Content Understanding endpoint",
     )
     azure_ai_document_intelligence_endpoint: str = Field(
-        default_factory=lambda data: data["azure_ai_endpoint"],
+        default_factory=lambda data: data.get("azure_ai_endpoint", None),
         description="The endpoint to use for the Document Intelligence endpoint",
+        validate_default=True
     )
     azure_ai_document_intelligence_api_version: str = Field(
         default="2024-11-30",

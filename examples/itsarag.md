@@ -1,7 +1,7 @@
 # It's a RAG Ingestor
 ## Description
 
-"It's a RAG" Catalyst Example: demonstrate how the It's a RAG pattern can be implemented 
+"It's a RAG" Catalyst Example: demonstrate how the It's a RAG pattern can be implemented
 with az-ai-catalyst.
 
 Source: https://github.com/francesco-sodano/itsarag
@@ -262,14 +262,14 @@ def embed(
             catalyst=catalyst,
             fragment=fragment,
             label="chunk",
-            human_index = index + 1,
+            human_index=index + 1,
             model="text-embedding-3-large",
             metadata={
                 "file_name": fragment.metadata["file_name"],
                 "page_number": fragment.metadata["page_number"],
                 "data_url": fragment.metadata.get("data_url", None),
                 "url": f"https://www.example.com/{fragment.metadata['file_name']}",
-            }
+            },
         )
         for index, fragment in enumerate(fragments)
     ]

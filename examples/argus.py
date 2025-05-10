@@ -6,7 +6,6 @@ with az-ai-catalyst.
 Source: https://github.com/Azure-Samples/ARGUS
 """
 
-import os
 from pathlib import Path
 from typing import Annotated, Any
 
@@ -41,15 +40,11 @@ class ArgusSettings(CatalystSettings):
             "temperature": self.temperature,
         }
 
-
-settings = ArgusSettings()
-
 #
 # Catalyst definition
 #
 
-
-catalyst = az_ai.catalyst.Catalyst(settings=settings)
+catalyst = az_ai.catalyst.Catalyst(settings_cls=ArgusSettings)
 
 catalyst.add_document_from_file("tests/data/Drug_Prescription_form.pdf")
 
@@ -172,7 +167,7 @@ def apply_llm_to_pages(
     """
 
     system_context = EXTRACTION_SYSTEM_PROMPT.format(
-        prompt=settings.extraction_prompt,
+        prompt=catalyst.settings.extraction_prompt,
         json_schema=catalyst.settings.json_schema,
     )
     messages = [
@@ -190,9 +185,9 @@ def apply_llm_to_pages(
     ]
 
     response = catalyst.azure_openai_client.chat.completions.create(
-        model=settings.model_name,
+        model=catalyst.settings.model_name,
         messages=messages,
-        temperature=settings.temperature,
+        temperature=catalyst.settings.temperature,
     )
     return Extraction.with_source(
         di_result,
@@ -233,7 +228,7 @@ def evaluate_with_llm(
     ]
 
     response = catalyst.azure_openai_client.chat.completions.create(
-        model=settings.model_name, messages=messages, seed=0
+        model=catalyst.settings.model_name, messages=messages, seed=0
     )
 
     return ExtractionEvaluation.with_source(
@@ -330,7 +325,7 @@ Path("examples/argus.md").write_text(markdown(catalyst, "Argus Ingestor", descri
 
 mlflow.set_experiment("argus")
 with mlflow.start_run():
-    mlflow.log_params(settings.as_params())
+    mlflow.log_params(catalyst.settings.as_params())
     catalyst()
 
     if isinstance(catalyst.repository, LocalRepository):
