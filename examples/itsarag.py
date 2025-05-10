@@ -55,7 +55,7 @@ class ItsaragSettings(CatalystSettings):
         }
 
 
-settings = ItsaragSettings(repository_path="/tmp/itsarag_repo")
+settings = ItsaragSettings(repository_url="/tmp/itsarag_repo")
 
 fields = [
     SimpleField(
@@ -340,19 +340,3 @@ with mlflow.start_run():
 
     catalyst()
     catalyst.update_index()
-
-
-# Other ideas:
-"""
-from Document to document_intelligence_result:Fragment call apply_document_intelligence
-from document_intelligence_result:Fragment to figures:Fragment call extract_figures
-from figures:Fragment to text:Fragment call embedded
-"""
-
-# OR
-
-# @catalyst.transformation(
-#        "from Document to document_intelligence_result:Fragment" \
-#        "use building_block document_intelligence"
-#        )
-# def apply_document_intelligence(content, )

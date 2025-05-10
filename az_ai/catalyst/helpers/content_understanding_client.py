@@ -1,9 +1,10 @@
-import requests
-from requests.models import Response
-import logging
 import json
+import logging
 import time
 from pathlib import Path
+
+import requests
+from requests.models import Response
 
 
 class AzureContentUnderstandingClient:
@@ -134,7 +135,7 @@ class AzureContentUnderstandingClient:
             requests.Response: The response object from the HTTP request.
         """
         if analyzer_template_path and Path(analyzer_template_path).exists():
-            with open(analyzer_template_path, "r") as file:
+            with open(analyzer_template_path) as file:
                 analyzer_template = json.load(file)
 
         if not analyzer_template:
@@ -273,8 +274,10 @@ class AzureContentUnderstandingClient:
 
         Args:
             response (Response): The initial response object containing the operation location.
-            timeout_seconds (int, optional): The maximum number of seconds to wait for the operation to complete. Defaults to 120.
-            polling_interval_seconds (int, optional): The number of seconds to wait between polling attempts. Defaults to 2.
+            timeout_seconds (int, optional): The maximum number of seconds to wait for the operation to complete. 
+            Defaults to 120.
+            polling_interval_seconds (int, optional): The number of seconds to wait between polling attempts. 
+            Defaults to 2.
 
         Raises:
             ValueError: If the operation location is not found in the response headers.

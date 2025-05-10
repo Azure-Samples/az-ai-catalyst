@@ -5,12 +5,11 @@ import pytest
 import az_ai.catalyst
 from az_ai.catalyst import Document, Fragment
 from az_ai.catalyst.catalyst import OperationError
-from az_ai.catalyst.settings import CatalystSettings
 
 
 @pytest.fixture
 def catalyst(tmpdir):
-    return az_ai.catalyst.Catalyst(settings=CatalystSettings(repository_path=str(tmpdir)))
+    return az_ai.catalyst.Catalyst(repository_url=str(tmpdir))
 
 
 def test_catalyst_initialization(catalyst):

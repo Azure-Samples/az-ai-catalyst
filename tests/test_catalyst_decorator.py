@@ -4,12 +4,11 @@ import pytest
 
 import az_ai.catalyst
 from az_ai.catalyst import Document, Fragment
-from az_ai.catalyst.settings import CatalystSettings
 
 
 @pytest.fixture
 def catalyst(tmpdir):
-    return az_ai.catalyst.Catalyst(settings=CatalystSettings(repository_path=str(tmpdir)))
+    return az_ai.catalyst.Catalyst(repository_url=str(tmpdir))
 
 def test_document_operation(catalyst):
     @catalyst.operation()
@@ -106,20 +105,20 @@ def test_multiple_input_specs(catalyst):
         pass
 
     assert len(catalyst.operations()) == 1
-    op = catalyst.operations()["op"]
+    _op = catalyst.operations()["op"]
 
-    assert op.name == "op"
+    assert _op.name == "op"
 
-    assert op.input_specs[0].name == "document"
-    assert op.input_specs[0].fragment_type == "Document"
-    assert not op.input_specs[0].multiple
-    assert op.input_specs[0].filter == {}
+    assert _op.input_specs[0].name == "document"
+    assert _op.input_specs[0].fragment_type == "Document"
+    assert not _op.input_specs[0].multiple
+    assert _op.input_specs[0].filter == {}
 
-    assert op.input_specs[1].name == "fragment"
-    assert op.input_specs[1].fragment_type == "Fragment"
-    assert not op.input_specs[1].multiple
-    assert op.input_specs[1].filter == {}
+    assert _op.input_specs[1].name == "fragment"
+    assert _op.input_specs[1].fragment_type == "Fragment"
+    assert not _op.input_specs[1].multiple
+    assert _op.input_specs[1].filter == {}
 
-    assert not op.output_spec.multiple
-    assert op.output_spec.fragment_type == "Fragment"
-    assert op.output_spec.label == "text"
+    assert not _op.output_spec.multiple
+    assert _op.output_spec.fragment_type == "Fragment"
+    assert _op.output_spec.label == "text"

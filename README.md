@@ -39,7 +39,7 @@ Alternatively you can provide the environment variables directly in the command 
 #### It's a RAG example
 
 ```bash
-uv run examples/itsarag.py
+REPOSITORY_URL=/tmp/itsarag_repository uv run examples/itsarag.py
 ```
 
 > [!NOTE]
@@ -54,7 +54,7 @@ uv run az-ai-catalyst human --repository /tmp/itsarag_repo/
 #### Argus example
 
 ```bash
-uv run examples/argus.py
+REPOSITORY_URL=/tmp/argus_repository uv run examples/argus.py
 ```
 
 > [!NOTE]  
@@ -69,6 +69,14 @@ uv run az-ai-catalyst human --repository /tmp/argus_repo/
 ### Run the tests
 
 ```bash
+uv run pytest
+```
+
+To run Azure Storage Account backed repository tests: 
+
+```bash
+REPOSITORY_URL="https://_your_storage_account_name_.blob.core.windows.net" \
+REPOSITORY_CONTAINER_NAME=test \
 uv run pytest
 ```
 
@@ -134,8 +142,21 @@ catalyst()
 To run the above example run the following command after populating your `.env` file:
 
 ```bash
-REPOSITORY_PATH=/tmp/repository uv run examples/doc.py
+REPOSITORY_URL=/tmp/repository uv run examples/doc.py
 ```
+
+To run the above example with an Azure Storage Account backed repository run:
+
+```bash
+REPOSITORY_URL="https://_your_storage_account_name_.blob.core.windows.net" \
+REPOSITORY_CONTAINER_NAME=doc \
+uv run examples/doc.py
+```
+
+> [!WARNING]
+> You will need to have a Role that allows you to create the container (if not created) or
+> to create blobs in the container if already created.
+
 
 The documentation will be generated in [examples/doc.md](examples/doc.md).
 

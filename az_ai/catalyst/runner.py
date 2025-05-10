@@ -138,7 +138,7 @@ class CatalystRunner:
             if not output_spec.matches(result):
                 self._console.log(f"Result {result} does not match output spec {escape(str(output_spec))}")
                 raise OperationError(
-                    f"Non compliant Fragment returned for operation {operation.name}"  # TODO: better document for which run
+                    f"Non compliant Fragment returned for operation {operation.name}"  # TODO: better document wich run
                 )
             self._console.log(f"    -> Storing {escape(str(result))}...")
             self.repository.store(result)

@@ -3,15 +3,14 @@ from typing import Annotated
 
 import pytest
 
-from az_ai.catalyst import Document, Fragment, Catalyst, OperationError
+from az_ai.catalyst import Catalyst, Document, Fragment, OperationError
 from az_ai.catalyst.repository import LocalRepository
 from az_ai.catalyst.schema import FragmentSelector
-from az_ai.catalyst.settings import CatalystSettings
 
 
 @pytest.fixture(scope="function")
 def catalyst(tmpdir):
-    return Catalyst(settings=CatalystSettings(repository_path=Path(tmpdir)))
+    return Catalyst(repository_url=str(tmpdir))
 
 @pytest.fixture(scope="function")
 def single_step_catalyst(catalyst):

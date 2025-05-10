@@ -144,18 +144,14 @@ def test_document_content_from_content_url(empty_repository, document):
 
 
 def test_add_operations_log_entry(empty_repository):
-    entry1 = OperationsLogEntry(operation_name="operation_name1", input_refs=["foo"], output_refs=["bar", "baz"], duration_ns=12345)
+    entry1 = OperationsLogEntry(
+        operation_name="operation_name1", input_refs=["foo"], output_refs=["bar", "baz"], duration_ns=12345
+    )
     entry2 = OperationsLogEntry(
-        operation_name="operation_name2",
-        input_refs=["bar"],
-        output_refs=["barbar", "barbaz"],
-        duration_ns=67890
+        operation_name="operation_name2", input_refs=["bar"], output_refs=["barbar", "barbaz"], duration_ns=67890
     )
     entry3 = OperationsLogEntry(
-        operation_name="operation_name2",
-        input_refs=["baz"],
-        output_refs=["bazbar", "bazbaz"],
-        duration_ns=111213
+        operation_name="operation_name2", input_refs=["baz"], output_refs=["bazbar", "bazbaz"], duration_ns=111213
     )
     empty_repository.add_operations_log_entry(entry1)
     empty_repository.add_operations_log_entry(entry2)

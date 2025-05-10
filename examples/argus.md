@@ -1,7 +1,7 @@
 # Argus Ingestor
 ## Description
 
-Argus Catalyst Example: demonstrate how the Argus pattern can be implemented 
+Argus Catalyst Example: demonstrate how the Argus pattern can be implemented
 with az-ai-catalyst.
 
 Source: https://github.com/Azure-Samples/ARGUS

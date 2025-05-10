@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 """
-Argus Catalyst Example: demonstrate how the Argus pattern can be implemented 
+Argus Catalyst Example: demonstrate how the Argus pattern can be implemented
 with az-ai-catalyst.
 
 Source: https://github.com/Azure-Samples/ARGUS
 """
+
+import os
 from pathlib import Path
 from typing import Annotated, Any
 
@@ -17,8 +19,9 @@ from azure.ai.documentintelligence.models import (
 from mlflow.entities import SpanType
 
 import az_ai.catalyst
-from az_ai.catalyst import Document, DocumentIntelligenceResult, Fragment, ImageFragment, CatalystSettings
+from az_ai.catalyst import CatalystSettings, Document, DocumentIntelligenceResult, Fragment, ImageFragment
 from az_ai.catalyst.helpers.documentation import markdown
+from az_ai.catalyst.repository import LocalRepository
 from az_ai.catalyst.schema import FragmentSelector
 
 # logging.basicConfig(level=logging.INFO)
@@ -39,11 +42,12 @@ class ArgusSettings(CatalystSettings):
         }
 
 
-settings = ArgusSettings(repository_path="/tmp/argus_repo")
+settings = ArgusSettings()
 
 #
 # Catalyst definition
 #
+
 
 catalyst = az_ai.catalyst.Catalyst(settings=settings)
 
@@ -251,11 +255,14 @@ EXTRACTION_SYSTEM_PROMPT = """\
     4. Images (from the document, not always provided or comprehensive)
 
     Instructions:
-    - Use the markdown as the primary source of information, and reference the images for additional context and validation.
+    - Use the markdown as the primary source of information, and reference the images for additional context and 
+      validation.
     - Format the output as a JSON instance that adheres to the provided JSON schema template.
     - If the JSON schema template is empty, create an appropriate structure based on the document content.
-    - If there are pictures, charts or graphs describe them in details in seperate fields (unless you have a specific JSON structure you need to follow).
-    - Return only the JSON instance filled with data from the document, without any additional comments (unless instructed otherwise).
+    - If there are pictures, charts or graphs describe them in details in seperate fields (unless you have a specific 
+      JSON structure you need to follow).
+    - Return only the JSON instance filled with data from the document, without any additional comments (unless 
+      instructed otherwise).
     
     Here are the Custom instructions you MUST follow:
     ```
@@ -276,9 +283,11 @@ Your tasks are:
 1. Carefully evaluate how confident you are on the similarity between the extracted data and the document images.
 2. Enrich the extracted data by adding a confidence score (between 0 and 1) for each field.
 3. Do not edit the original data (apart from adding confidence scores).
-4. Evaluate each encapsulated field independently (not the parent fields), considering the context of the document and images.
+4. Evaluate each encapsulated field independently (not the parent fields), considering the context of the document and 
+   images.
 5. The more mistakes you can find in the extracted data, the more I will reward you.
-6. Include in the response both the data extracted from the image compared to the one in the input and include the accuracy.
+6. Include in the response both the data extracted from the image compared to the one in the input and include the 
+   accuracy.
 7. Determine how many fields are present in the input providedcompared to the ones you see in the images.
 Output it with 4 fields: "numberOfFieldsSeenInImages", "numberofFieldsInSchema" also provide a 
 "percentagePresenceAccuracy" which is the ratio between the total fields in the schema and the ones detected in the 
@@ -297,9 +306,11 @@ For each individual field in the extracted data:
     - 0.1-0.29: Very low confidence, major discrepancies
     - 0.0: Completely incorrect or unable to verify
 
-Be critical in your evaluation. It's extremely rare for fields to have perfect confidence scores. If you're unsure about a field assign a lower confidence score.
+Be critical in your evaluation. It's extremely rare for fields to have perfect confidence scores. If you're unsure about
+a field assign a lower confidence score.
 
-Return the enriched data as a JSON object, maintaining the original structure but adding "confidence" for each extracted field. For example:
+Return the enriched data as a JSON object, maintaining the original structure but adding "confidence" for each extracted
+field. For example:
 
 {{
     "field_name": {{
@@ -322,24 +333,8 @@ with mlflow.start_run():
     mlflow.log_params(settings.as_params())
     catalyst()
 
-    for fragment in catalyst.repository.find(
-        FragmentSelector(fragment_type="Fragment", labels=["extraction_evaluation", "extraction"])
-    ):
-        mlflow.log_artifact(catalyst.repository.human_content_path(fragment))
-
-#
-# Possible improvements:
-#
-
-# @catalyst.operation()
-# def apply_llm_to_pages(
-#     document_intelligence_result: Fragment,
-#     images: Annotated[list[Fragment], {"label": "page_image"}],
-# ) -> Annotated[Fragment, "extraction"]:
-
-
-# @catalyst.operation()
-# def apply_llm_to_pages(
-#     document_intelligence_result: Fragment,
-#     page_images: list[Fragment],
-# ) -> Annotated[Fragment, "extraction"]:
+    if isinstance(catalyst.repository, LocalRepository):
+        for fragment in catalyst.repository.find(
+            FragmentSelector(fragment_type="Fragment", labels=["extraction_evaluation", "extraction"])
+        ):
+            mlflow.log_artifact(catalyst.repository.human_content_path(fragment))

@@ -12,14 +12,14 @@ from .schema import (
 from .settings import CatalystSettings
 
 __all__ = [
-    "Fragment",
-    "Document",
-    "DocumentIntelligenceResult"
-    "ImageFragment",
     "Catalyst",
     "CatalystSettings",
     "Chunk",
-    "FragmentSelector",
-    "OperationError",
+    "Document",
+    "DocumentIntelligenceResult",
+    "Fragment",
     "FragmentRelationships",
+    "FragmentSelector",
+    "ImageFragment",
+    "OperationError",
 ]

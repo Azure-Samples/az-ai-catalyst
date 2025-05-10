@@ -42,8 +42,8 @@ class Repository(ABC):
         """
         pass
 
-    def _get_content_from_url(self, fragment: Fragment) -> bytes:
-        """Get the content from the given URL."""
+    def _load_content_from_url(self, fragment: Fragment) -> bytes:
+        """Load the content from the URL in the fragment's content_url field"""
         if not fragment.content_url:
             raise FragmentContentNotFoundError(f"Fragment {fragment.id} does not have a content URL.")
         try:
@@ -56,19 +56,16 @@ class Repository(ABC):
 
 class FragmentNotFoundError(Exception):
     """Exception raised when a fragment is not found in the repository."""
-
     pass
 
 
 class DuplicateFragmentError(Exception):
     """Exception raised when a fragment with the same ID already exists in the repository."""
-
     pass
 
 
 class FragmentContentNotFoundError(Exception):
     """Exception raised when a fragment does not have a content URL."""
-
     pass
 
 
@@ -130,23 +127,19 @@ class FragmentIndex(BaseModel):
         raise FragmentNotFoundError(f"Fragment {fragment.id} not found in the index.")
 
 
-CONTENT_PREFIX = "_content"
-FRAGMENTS_PREFIX = "_fragments"
-HUMAN_PREFIX = "_human"
-
-
 class LocalRepository(Repository):
-    def __init__(self, path: Path = None):
-        """
-        Initialize the LocalRepository at the given path.
-        """
+    CONTENT_PREFIX = "_content"
+    FRAGMENTS_PREFIX = "_fragments"
+    HUMAN_PREFIX = "_human"
+    
+    def __init__(self, path: Path | str = None):
         if path is None:
             raise ValueError("Path must be provided.")
-        self._path = path
-        self._contents_path = path / CONTENT_PREFIX
-        self._fragments_path = path / FRAGMENTS_PREFIX
-        self._human_path = path / HUMAN_PREFIX
-        self._operations_log_path = path / "_operations_log.json"
+        self._path = path if isinstance(path, Path) else Path(path)
+        self._contents_path = self._path / self.CONTENT_PREFIX
+        self._fragments_path = self._path / self.FRAGMENTS_PREFIX
+        self._human_path = self._path / self.HUMAN_PREFIX
+        self._operations_log_path = self._path / "_operations_log.json"
         self._index_path = self._fragments_path / "_index.json"
         self._contents_path.mkdir(parents=True, exist_ok=True)
         self._fragments_path.mkdir(parents=True, exist_ok=True)
@@ -178,7 +171,7 @@ class LocalRepository(Repository):
         if fragment_path.exists():
             raise DuplicateFragmentError(f"Fragment {fragment.id} already exists.")
         if not fragment.content and "content_url" in fragment.__class__.model_fields and fragment.content_url:
-            fragment.content = self._get_content_from_url(fragment)
+            fragment.content = self._load_content_from_url(fragment)
         if fragment.content:
             self._store_content(fragment)
 
@@ -276,7 +269,7 @@ class LocalRepository(Repository):
         """
         Get the human-readable path for the given fragment content.
         """
-        return self._human_path / CONTENT_PREFIX / fragment.human_file_name()
+        return self._human_path / self.CONTENT_PREFIX / fragment.human_file_name()
 
     def _create_human_content_link(self, fragment: Fragment, content_path: Path):
         """
@@ -289,7 +282,7 @@ class LocalRepository(Repository):
             human_path.parent.mkdir(parents=True, exist_ok=True)
         relative_target = (
             Path("/".join([".." for i in range(len(fragment.human_file_name().parts) + 1)]))
-            / CONTENT_PREFIX
+            / self.CONTENT_PREFIX
             / content_path.name
         )
         human_path.symlink_to(relative_target)
@@ -298,7 +291,7 @@ class LocalRepository(Repository):
         """
         Create a human-readable link for the given fragment.
         """
-        human_path = self._human_path / FRAGMENTS_PREFIX / fragment.human_file_name()
+        human_path = self._human_path / self.FRAGMENTS_PREFIX / fragment.human_file_name()
         human_path = human_path.with_suffix(".json")
         if human_path.exists():
             raise DuplicateFragmentError(f"Fragment {fragment.id} human fragment name already exists: {human_path}")
@@ -306,7 +299,7 @@ class LocalRepository(Repository):
             human_path.parent.mkdir(parents=True, exist_ok=True)
         relative_target = (
             Path("/".join([".." for i in range(len(fragment.human_file_name().parts) + 1)]))
-            / FRAGMENTS_PREFIX
+            / self.FRAGMENTS_PREFIX
             / "/".join(fragment_path.parts[-2:])
         )
         human_path.symlink_to(relative_target)

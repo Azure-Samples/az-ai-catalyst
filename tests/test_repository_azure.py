@@ -2,6 +2,7 @@ import os
 import uuid
 
 import pytest
+from azure.identity import DefaultAzureCredential
 from azure.storage.blob import BlobServiceClient
 
 from az_ai.catalyst import Document, Fragment, FragmentSelector
@@ -15,15 +16,15 @@ from az_ai.catalyst.schema import OperationsLogEntry
 
 @pytest.fixture(scope="function")
 def azure_repository():
-    connection_string = os.environ.get("AZURE_STORAGE_CONNECTION_STRING")
-    container_name = os.environ.get("AZURE_STORAGE_CONTAINER_NAME")
-    if not connection_string or not container_name:
+    repository_url = os.environ.get("REPOSITORY_URL")
+    container_name = os.environ.get("REPOSITORY_CONTAINER_NAME")
+    if not repository_url or not container_name:
         pytest.skip("Azure connection string or container name not set in environment variables")
     # Use a unique container for isolation if needed
-    repo = AzureRepository(connection_string, container_name)
+    repo = AzureRepository(repository_url, container_name, credential=DefaultAzureCredential())
     yield repo
     try:
-        blob_service_client = BlobServiceClient.from_connection_string(connection_string)
+        blob_service_client = BlobServiceClient(account_url=repository_url)
         container_client = blob_service_client.get_container_client(container_name)
         blobs = container_client.list_blobs()
         for blob in blobs:

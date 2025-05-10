@@ -1,8 +1,9 @@
-from pathlib import Path
+import urllib.parse
 
 from pydantic import (
     AliasChoices,
     Field,
+    field_validator,
 )
 from pydantic_settings import (
     BaseSettings,
@@ -15,7 +16,23 @@ from pydantic_settings import (
 
 
 class CatalystSettings(BaseSettings):
-    repository_path: Path
+    repository_url: str = Field(
+        description="URL of the repository, which can be a local path or remote Azure Storage Account URL"
+    )
+    repository_container_name: str | None = Field(
+        default=None, description="Name of the blob container name within the Azure storage"
+    )
+
+    @field_validator("repository_url")
+    def validate_repository_url(cls, v: str) -> str:
+        try:
+            parsed = urllib.parse.urlparse(v)
+            if not parsed.scheme and not parsed.netloc and not parsed.path:
+                raise ValueError("Repository URL cannot be empty")
+            return v
+        except Exception as e:
+            raise ValueError(f"Invalid repository URL: '{v}'") from e
+
     index_name: str | None = Field(
         default=None,
         validation_alias=AliasChoices("index_name", "Name of the index to use (and create if it does not exist)"),
@@ -31,7 +48,7 @@ class CatalystSettings(BaseSettings):
         description="The API version to use for the Content Understanding endpoint",
     )
     azure_ai_document_intelligence_endpoint: str = Field(
-        default_factory=lambda data: data['azure_ai_endpoint'],
+        default_factory=lambda data: data["azure_ai_endpoint"],
         description="The endpoint to use for the Document Intelligence endpoint",
     )
     azure_ai_document_intelligence_api_version: str = Field(

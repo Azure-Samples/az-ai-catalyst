@@ -1,16 +1,8 @@
-import uuid
-from textwrap import dedent
 from pathlib import Path
 from typing import Annotated
 
-from azure.ai.documentintelligence.models import (
-    AnalyzeDocumentRequest,
-    DocumentAnalysisFeature,
-    DocumentContentFormat,
-)
-
 import az_ai.catalyst
-from az_ai.catalyst import Document, DocumentIntelligenceResult, Fragment
+from az_ai.catalyst import Document, Fragment
 from az_ai.catalyst.helpers.documentation import markdown
 
 catalyst = az_ai.catalyst.Catalyst()
