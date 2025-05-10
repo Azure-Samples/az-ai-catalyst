@@ -15,6 +15,7 @@ dependencies = [
     "azure-ai-projects>=1.0.0b10",
     "azure-identity>=1.21.0",
     "azure-search-documents>=11.5.2",
+    "azure-storage-blob>=12.25.1",
     "mlflow>=2.22.0",
     "openai>=1.76.0",
     "pedantic>=2.1.9",

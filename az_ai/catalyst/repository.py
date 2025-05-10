@@ -42,12 +42,16 @@ class Repository(ABC):
         """
         pass
 
-    @abstractmethod
-    def human_content_path(self, fragment: Fragment) -> Path:
-        """
-        Get the human-readable path for the given fragment content.
-        """
-        pass
+    def _get_content_from_url(self, fragment: Fragment) -> bytes:
+        """Get the content from the given URL."""
+        if not fragment.content_url:
+            raise FragmentContentNotFoundError(f"Fragment {fragment.id} does not have a content URL.")
+        try:
+            with request.urlopen(fragment.content_url) as response:
+                return response.read()
+        except Exception as exc:
+            raise FragmentContentNotFoundError(f"Failed to fetch content from {fragment.content_url}: {exc}") from exc
+
 
 
 class FragmentNotFoundError(Exception):
@@ -92,7 +96,7 @@ class FragmentIndex(BaseModel):
         Get all fragments matching the given selector.
         """
         return [entry.ref for entry in self.fragments if entry.match(selector)]
-    
+
     def add(self, fragment: Fragment) -> None:
         """
         Add a new entry to the index.
@@ -102,14 +106,16 @@ class FragmentIndex(BaseModel):
         """
         if any(e.ref == fragment.id for e in self.fragments):
             raise DuplicateFragmentError(f"Fragment {fragment.id} already exists in the index.")
-        self.fragments.append(FragmentIndexEntry(
-            ref=fragment.id,
-            label=fragment.label,
-            types={cls.class_name() for cls in fragment.__class__.mro() if issubclass(cls, Fragment)}
-        ))
+        self.fragments.append(
+            FragmentIndexEntry(
+                ref=fragment.id,
+                label=fragment.label,
+                types={cls.class_name() for cls in fragment.__class__.mro() if issubclass(cls, Fragment)},
+            )
+        )
         return self
 
-    def update(self, fragment:Fragment) -> None:
+    def update(self, fragment: Fragment) -> None:
         """
         Update an existing entry in the index.
 
@@ -122,6 +128,7 @@ class FragmentIndex(BaseModel):
                 # type and ref are not supposed to change
                 return self
         raise FragmentNotFoundError(f"Fragment {fragment.id} not found in the index.")
+
 
 CONTENT_PREFIX = "_content"
 FRAGMENTS_PREFIX = "_fragments"
@@ -174,7 +181,7 @@ class LocalRepository(Repository):
             fragment.content = self._get_content_from_url(fragment)
         if fragment.content:
             self._store_content(fragment)
- 
+
         if not fragment_path.parent.exists():
             fragment_path.parent.mkdir()
         fragment_path.write_text(fragment.model_dump_json(indent=2))
@@ -304,18 +311,6 @@ class LocalRepository(Repository):
         )
         human_path.symlink_to(relative_target)
 
-    def _get_content_from_url(self, fragment: Fragment) -> bytes:
-        """
-        Get the content from the given URL.
-        """
-        if not fragment.content_url:
-            raise FragmentContentNotFoundError(f"Fragment {fragment.id} does not have a content URL.")
-        try:
-            with request.urlopen(fragment.content_url) as response:
-                return response.read()
-        except Exception as exc:
-            raise FragmentContentNotFoundError(f"Failed to fetch content from {fragment.content_url}: {exc}") from exc
-
     def _get_content_from_ref(self, fragment: Fragment) -> bytes:
         content_path = self._content_path(fragment)
 
@@ -330,11 +325,7 @@ class LocalRepository(Repository):
         Get the path to the fragment file.
         """
         if isinstance(fragment_or_ref, Fragment):
-            return (
-                self._fragments_path
-                / fragment_or_ref.__class__.class_name()
-                / f"{fragment_or_ref.id}.json"
-            )
+            return self._fragments_path / fragment_or_ref.__class__.class_name() / f"{fragment_or_ref.id}.json"
         else:
             paths = list(self._fragments_path.glob(f"*/{fragment_or_ref}.json"))
             if not paths:
