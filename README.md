@@ -141,13 +141,21 @@ The documentation will be generated in [examples/doc.md](examples/doc.md).
 
 ## Roadmap
 
+### Planned
+
 - Support for reasoning models
 - Support for structured output
 - Usage/cost summarization for easy cost estimations
 - Support for multi-agentic document processing
-- Support for MCP steps (client)
-- Available as an MCP server
 - Smart "Catalyst" generation
+- Seamless integration with Cognitive Services (esp. vision, summarization, translation, etc.)
+- Seamless integration with Azure Foundry MaaS models
+- Support for MCP steps (client)
+
+### Under review
+
+- Support for web browsing through Playwright MCP and/or CUA
+- Available as an MCP server
 
 ## Responsible AI Guidelines
 
