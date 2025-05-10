@@ -1,4 +1,5 @@
 import urllib.parse
+from pathlib import Path
 
 from pydantic import (
     AliasChoices,
@@ -16,7 +17,7 @@ from pydantic_settings import (
 
 
 class CatalystSettings(BaseSettings):
-    repository_url: str = Field(
+    repository_url: Path | str = Field(
         description="URL of the repository, which can be a local path or remote Azure Storage Account URL"
     )
     repository_container_name: str | None = Field(
@@ -24,8 +25,9 @@ class CatalystSettings(BaseSettings):
     )
 
     @field_validator("repository_url")
-    def validate_repository_url(cls, v: str) -> str:
+    def validate_repository_url(cls, v: Path | str) -> str:
         try:
+            v = v.resolve().as_uri() if isinstance(v, Path) else v
             parsed = urllib.parse.urlparse(v)
             if not parsed.scheme and not parsed.netloc and not parsed.path:
                 raise ValueError("Repository URL cannot be empty")
