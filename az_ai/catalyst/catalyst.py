@@ -19,6 +19,7 @@ from azure.identity import DefaultAzureCredential, get_bearer_token_provider
 from azure.search.documents import SearchClient
 from azure.search.documents.indexes import SearchIndexClient
 from pydantic import ValidationError
+from semantic_kernel import Kernel
 
 from az_ai.catalyst.azure_repository import AzureRepository
 from az_ai.catalyst.helpers.content_understanding_client import AzureContentUnderstandingClient
@@ -263,6 +264,15 @@ class Catalyst:
             )
         return self._content_understanding_client
 
+
+    @property
+    def kernel(self) -> Kernel:
+        """
+        Get the Semantic Kernel instance.
+        """
+        if not hasattr(self, "_kernel"):
+            self._kernel = Kernel()
+        return self._kernel
     def _parse_operator_function_signature(self, func: CommandFunctionType, scope: str) -> OperationSpec:
         logger.debug("Parsing function signature for %s...", func.__name__)
         type_hints = get_type_hints(func)
