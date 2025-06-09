@@ -148,7 +148,7 @@ def describe_figure(
     """)
 
     response = catalyst.azure_openai_client.chat.completions.create(
-        model=settings.model_name,
+        model=catalyst.settings.model_name,
         messages=[
             {"role": "system", "content": SYSTEM_CONTEXT},
             {
@@ -167,8 +167,8 @@ def describe_figure(
                 ],
             },
         ],
-        temperature=settings.temperature,
-        max_tokens=settings.max_tokens,
+        temperature=catalyst.settings.temperature,
+        max_tokens=catalyst.settings.max_tokens,
     )
 
     return FigureDescription.with_source(

@@ -196,7 +196,7 @@ def apply_llm_to_pages(
     """
 
     system_context = EXTRACTION_SYSTEM_PROMPT.format(
-        prompt=settings.extraction_prompt,
+        prompt=catalyst.settings.extraction_prompt,
         json_schema=catalyst.settings.json_schema,
     )
     messages = [
@@ -214,9 +214,9 @@ def apply_llm_to_pages(
     ]
 
     response = catalyst.azure_openai_client.chat.completions.create(
-        model=settings.model_name,
+        model=catalyst.settings.model_name,
         messages=messages,
-        temperature=settings.temperature,
+        temperature=catalyst.settings.temperature,
     )
     return Extraction.with_source(
         di_result,
@@ -270,7 +270,7 @@ def evaluate_with_llm(
     ]
 
     response = catalyst.azure_openai_client.chat.completions.create(
-        model=settings.model_name, messages=messages, seed=0
+        model=catalyst.settings.model_name, messages=messages, seed=0
     )
 
     return ExtractionEvaluation.with_source(
