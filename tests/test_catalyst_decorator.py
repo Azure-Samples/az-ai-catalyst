@@ -10,6 +10,7 @@ from az_ai.catalyst import Document, Fragment
 def catalyst(tmpdir):
     return az_ai.catalyst.Catalyst(repository_url=str(tmpdir))
 
+
 def test_document_operation(catalyst):
     @catalyst.operation()
     def document_op(

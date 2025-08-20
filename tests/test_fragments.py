@@ -13,8 +13,8 @@ def fragment():
         metadata={"key": "value"},
         relationships={
             FragmentRelationships.SOURCE: "source",
-            FragmentRelationships.SOURCE_DOCUMENT: "source_document"
-        }
+            FragmentRelationships.SOURCE_DOCUMENT: "source_document",
+        },
     )
 
 
@@ -28,9 +28,7 @@ def fragment():
         ("figure", "image/png", ["test"], 2, "test/figure_002.png"),
     ],
 )
-def test_fragment_human_file_name_with_elements(
-    label, mime_type, parents, human_index, expected
-):
+def test_fragment_human_file_name_with_elements(label, mime_type, parents, human_index, expected):
     fragment = Fragment(
         id="fragment",
         label=label,
@@ -120,15 +118,14 @@ def test_with_source(fragment):
 
 
 def test_with_source_with_extra_metadata(fragment):
-    new_fragment = Fragment.with_source(
-        fragment, update_metadata={"extra_key": "extra_value"}
-    )
+    new_fragment = Fragment.with_source(fragment, update_metadata={"extra_key": "extra_value"})
 
     assert new_fragment != fragment
     assert new_fragment.id is not None
     assert new_fragment.id != fragment.id
     assert new_fragment.label == fragment.label
     assert new_fragment.metadata == {**fragment.metadata, "extra_key": "extra_value"}
+
 
 def test_with_source_relationships():
     document = Document(
@@ -146,26 +143,18 @@ def test_with_source_relationships():
     assert fragment2.relationships[FragmentRelationships.SOURCE] == fragment1.id
     assert fragment2.relationships[FragmentRelationships.SOURCE_DOCUMENT] == document.id
 
+
 def test_fails_with_no_source():
     fragment = Fragment(
-        id="fragment_1",
-        label="md",
-        relationships={
-            FragmentRelationships.SOURCE_DOCUMENT: "source_document"
-        }        
+        id="fragment_1", label="md", relationships={FragmentRelationships.SOURCE_DOCUMENT: "source_document"}
     )
 
     with pytest.raises(ValueError, match="Source relationship is mandatory in fragment: "):
         Fragment.with_source(fragment)
 
+
 def test_fails_with_no_source_document():
-    fragment = Fragment(
-        id="fragment_1",
-        label="md",
-        relationships={
-            FragmentRelationships.SOURCE: "source"
-        }
-    )
+    fragment = Fragment(id="fragment_1", label="md", relationships={FragmentRelationships.SOURCE: "source"})
 
     with pytest.raises(ValueError, match="Source document relationship is mandatory in source fragment: "):
         Fragment.with_source(fragment)

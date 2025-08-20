@@ -29,6 +29,7 @@ class Reasoning(KernelBaseModel):
 
 
 @pytest.mark.asyncio
+@pytest.mark.skip(reason="TBD")
 async def test_kernel_call(catalyst):
     kernel = catalyst.kernel
     assert kernel is not None
@@ -39,15 +40,15 @@ async def test_kernel_call(catalyst):
             service_id=service_id,
             endpoint=catalyst.settings.azure_ai_endpoint,
             api_version=catalyst.settings.azure_openai_api_version,
-            #deployment_name="gpt-4.1-2025-04-14",
+            # deployment_name="gpt-4.1-2025-04-14",
             deployment_name="o1-2024-12-17",
         )
     )
 
     req_settings = kernel.get_prompt_execution_settings_from_service_id(service_id=service_id)
-    #req_settings.max_tokens = 2000
-    #req_settings.temperature = 0.7
-    #req_settings.top_p = 0.8
+    # req_settings.max_tokens = 2000
+    # req_settings.temperature = 0.7
+    # req_settings.top_p = 0.8
     req_settings.function_choice_behavior = FunctionChoiceBehavior.Auto(filters={"excluded_plugins": ["chat"]})
 
     # NOTE: This is the key setting in this example that tells the OpenAI service

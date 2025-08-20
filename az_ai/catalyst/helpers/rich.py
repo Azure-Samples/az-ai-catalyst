@@ -16,9 +16,7 @@ def fragment_as_table(fragment: Fragment) -> Panel:
     """
 
     metadata_table = Table(Column("Name", no_wrap=True), Column("Value", no_wrap=True), box=box.SIMPLE_HEAD)
-    relationships_table = Table(
-        "Type", "Target", box=box.SIMPLE_HEAD
-    )
+    relationships_table = Table("Type", "Target", box=box.SIMPLE_HEAD)
     content_table = Table(box=box.SIMPLE_HEAD, show_header=False)
 
     tables = Table.grid()
@@ -32,13 +30,9 @@ def fragment_as_table(fragment: Fragment) -> Panel:
     for key, value in fragment.metadata.items():
         value_str = str(value)
         value_str = escape(value_str[:100] + ("…" if len(value_str) > 100 else ""))
-        metadata_table.add_row(
-            Text(key), Text(value_str, overflow="ellipsis") 
-        )
+        metadata_table.add_row(Text(key), Text(value_str, overflow="ellipsis"))
 
-    content_table.add_row(
-        "Content size", str(len(fragment.content)) if fragment.content else "0"
-    )
+    content_table.add_row("Content size", str(len(fragment.content)) if fragment.content else "0")
     content_table.add_row("mime type", fragment.mime_type)
 
     match fragment.class_name():
@@ -62,10 +56,9 @@ def fragment_as_table(fragment: Fragment) -> Panel:
             case "application/json":
                 content = JSON(fragment.content_as_str())
             case mime if mime.startswith("image/"):
-                content= Text(f"{mime} image placeholder...", style="italic")
+                content = Text(f"{mime} image placeholder...", style="italic")
             case _:
-                content= Text(f"Unsupported {fragment.mime_type} placeholder...", style="italic")
-
+                content = Text(f"Unsupported {fragment.mime_type} placeholder...", style="italic")
 
     panel = Panel(
         Group(

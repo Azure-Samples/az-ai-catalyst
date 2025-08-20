@@ -40,6 +40,7 @@ class ArgusSettings(CatalystSettings):
             "temperature": self.temperature,
         }
 
+
 #
 # Catalyst definition
 #

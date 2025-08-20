@@ -42,7 +42,7 @@ class CatalystRunner:
         self._console.log(f"Running {escape(str(operation))}: ")
 
         inputs = [self.repository.find(input.selector()) for input in operation.input_specs]
-        
+
         call_arguments = self._create_call_arguments(operation, inputs, operation.scope == "same")
         for arguments in call_arguments:
             input_fragment_ids = self._input_fragment_ids_set(arguments)
@@ -71,7 +71,7 @@ class CatalystRunner:
     ) -> list[list[list[Fragment] | Fragment]]:
         """
         Create argument lists for operation function calls based on input fragments.
-        
+
         When same_scope is True, arguments are grouped by source document reference,
         ensuring that operation functions only receive fragments from the same source.
         Otherwise, all input combinations are considered.
@@ -98,7 +98,7 @@ class CatalystRunner:
             source_refs = {"placeholder"}
 
         call_arguments_by_source = {source_ref: [[]] for source_ref in source_refs}
-        
+
         for input_spec, fragments in zip(operation.input_specs, inputs, strict=True):
             for source_ref in source_refs:
                 current_args = call_arguments_by_source[source_ref]
@@ -106,7 +106,7 @@ class CatalystRunner:
                     matching_fragments = [f for f in fragments if f.source_document_ref() == source_ref]
                 else:
                     matching_fragments = fragments
-                
+
                 if input_spec.multiple:
                     # For multiple inputs, append the list of matching fragments to each argument set
                     for args in current_args:
@@ -114,9 +114,7 @@ class CatalystRunner:
                 else:
                     # For single inputs, create a new argument set for each matching fragment
                     call_arguments_by_source[source_ref] = [
-                        args + [fragment] 
-                        for args in current_args 
-                        for fragment in matching_fragments
+                        args + [fragment] for args in current_args for fragment in matching_fragments
                     ]
         return [arg for args_list in call_arguments_by_source.values() for arg in args_list]
 

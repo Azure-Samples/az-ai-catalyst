@@ -53,19 +53,21 @@ class Repository(ABC):
             raise FragmentContentNotFoundError(f"Failed to fetch content from {fragment.content_url}: {exc}") from exc
 
 
-
 class FragmentNotFoundError(Exception):
     """Exception raised when a fragment is not found in the repository."""
+
     pass
 
 
 class DuplicateFragmentError(Exception):
     """Exception raised when a fragment with the same ID already exists in the repository."""
+
     pass
 
 
 class FragmentContentNotFoundError(Exception):
     """Exception raised when a fragment does not have a content URL."""
+
     pass
 
 
@@ -131,7 +133,7 @@ class LocalRepository(Repository):
     CONTENT_PREFIX = "_content"
     FRAGMENTS_PREFIX = "_fragments"
     HUMAN_PREFIX = "_human"
-    
+
     def __init__(self, path: Path | str = None):
         if path is None:
             raise ValueError("Path must be provided.")

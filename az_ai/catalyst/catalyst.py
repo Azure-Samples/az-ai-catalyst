@@ -189,8 +189,8 @@ class Catalyst:
         Get the AI project client.
         """
         if not hasattr(self, "_ai_project_client"):
-            self._ai_project_client = AIProjectClient.from_connection_string(
-                conn_str=self.settings.azure_ai_project_connection_string, credential=self.credential
+            self._ai_project_client = AIProjectClient(
+                endpoint=self.settings.azure_ai_foundry_project_endpoint, credential=self.credential
             )
         return self._ai_project_client
 
@@ -217,7 +217,7 @@ class Catalyst:
         Get the Azure OpenAI client.
         """
         if not hasattr(self, "_azure_openai_client"):
-            self._azure_openai_client = self.ai_project_client.inference.get_azure_openai_client(
+            self._azure_openai_client = self.ai_project_client.get_openai_client(
                 api_version=self.settings.azure_openai_api_version
             )
         return self._azure_openai_client
@@ -264,7 +264,6 @@ class Catalyst:
             )
         return self._content_understanding_client
 
-
     @property
     def kernel(self) -> Kernel:
         """
@@ -273,6 +272,7 @@ class Catalyst:
         if not hasattr(self, "_kernel"):
             self._kernel = Kernel()
         return self._kernel
+
     def _parse_operator_function_signature(self, func: CommandFunctionType, scope: str) -> OperationSpec:
         logger.debug("Parsing function signature for %s...", func.__name__)
         type_hints = get_type_hints(func)

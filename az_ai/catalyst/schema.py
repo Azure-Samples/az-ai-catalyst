@@ -34,6 +34,7 @@ class FragmentRelationships(str, Enum):
     """
     Enum representing the type of relationship between fragments.
     """
+
     SOURCE_DOCUMENT = auto()
     SOURCE = auto()
 
@@ -226,13 +227,13 @@ class Document(Fragment):
             return Path(self.metadata["file_name"])
         else:
             return super().human_file_name(*args, **kwargs)
-        
+
     def content_path(self) -> Path:
         """
         Get the content path for the document.
         """
         return Path(self.metadata["file_path"])
-        
+
     def source_document_ref(self):
         # A document is it's own source.
         return self.id

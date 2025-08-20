@@ -76,9 +76,11 @@ To run Azure Storage Account backed repository tests:
 
 ```bash
 REPOSITORY_URL="https://_your_storage_account_name_.blob.core.windows.net" \
-REPOSITORY_CONTAINER_NAME=test \
 uv run pytest
 ```
+
+Make sure you have enough access rights to create a container ("Storage Blob Data Contributor"). 
+A randomly named test container will be created and deleted after test execution.
 
 ### Visualize the traces (experimental)
 

@@ -12,8 +12,8 @@ from az_ai.catalyst.schema import Fragment, FragmentSelector, OperationsLog, Ope
 
 
 class AzureRepository(Repository):
-    def __init__(self, url: str, container_name: str, credential):
-        self.blob_service_client = BlobServiceClient(account_url=url, credential=credential)
+    def __init__(self, account_url: str, container_name: str, credential):
+        self.blob_service_client = BlobServiceClient(account_url=account_url, credential=credential)
         self.container_client = self.blob_service_client.get_container_client(container_name)
         if not self.container_client.exists():
             self.container_client.create_container()

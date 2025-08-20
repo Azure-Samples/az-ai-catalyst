@@ -92,7 +92,7 @@ class MarkdownFigureExtractor:
     def _extract_bounding_box(self, fragment: Fragment, figure: DocumentFigure):
         figure_caption = None
         figure_content = ""
-        for span in figure.spans: # TODO: ???
+        for span in figure.spans:  # TODO: ???
             figure_content += self.content[span.offset : span.offset + span.length]
         if figure.caption:
             figure_caption = figure.caption.content

@@ -40,7 +40,7 @@ class CatalystSettings(BaseSettings):
         validation_alias=AliasChoices("index_name", "Name of the index to use (and create if it does not exist)"),
     )
 
-    azure_ai_project_connection_string: str
+    azure_ai_foundry_project_endpoint: str
     azure_ai_endpoint: str = Field(validation_alias=AliasChoices("azure_ai_endpoint", "azure_openai_endpoint"))
     azure_content_understanding_endpoint: str = Field(
         description="The endpoint to use for the Content Understanding endpoint",
@@ -52,7 +52,7 @@ class CatalystSettings(BaseSettings):
     azure_ai_document_intelligence_endpoint: str = Field(
         default_factory=lambda data: data.get("azure_ai_endpoint", None),
         description="The endpoint to use for the Document Intelligence endpoint",
-        validate_default=True
+        validate_default=True,
     )
     azure_ai_document_intelligence_api_version: str = Field(
         default="2024-11-30",

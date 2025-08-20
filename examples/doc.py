@@ -15,6 +15,7 @@ catalyst = az_ai.catalyst.Catalyst()
 
 catalyst.add_document_from_file("tests/data/test.pdf")
 
+
 @catalyst.operation()
 def apply_document_intelligence(
     document: Document,
@@ -37,6 +38,7 @@ def apply_document_intelligence(
         label="document_intelligence_result",
         analyze_result=poller.result(),
     )
+
 
 # Write the ingestor's diagram to a markdown file
 Path("examples/doc.md").write_text(markdown(catalyst, "Sample Ingestor"))

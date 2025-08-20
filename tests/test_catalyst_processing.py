@@ -12,6 +12,7 @@ from az_ai.catalyst.schema import FragmentSelector
 def catalyst(tmpdir):
     return Catalyst(repository_url=str(tmpdir))
 
+
 @pytest.fixture(scope="function")
 def single_step_catalyst(catalyst):
     @catalyst.operation()
@@ -19,9 +20,11 @@ def single_step_catalyst(catalyst):
         return Fragment(
             id="output_id",
             label="output_label",
-            metadata=input.metadata | { "extra_key": "extra_value" },
+            metadata=input.metadata | {"extra_key": "extra_value"},
         )
+
     return catalyst
+
 
 @pytest.fixture(scope="function")
 def two_step_catalyst(catalyst):
@@ -30,18 +33,19 @@ def two_step_catalyst(catalyst):
         return Fragment(
             id="output_id",
             label="output_label",
-            metadata=input.metadata | { "extra_key": "extra_value" },
+            metadata=input.metadata | {"extra_key": "extra_value"},
         )
-    
+
     @catalyst.operation()
-    def second(input: Annotated[Fragment, {'label': "output_label"}]) -> Annotated[Fragment, "second_output_label"]:
+    def second(input: Annotated[Fragment, {"label": "output_label"}]) -> Annotated[Fragment, "second_output_label"]:
         return Fragment(
             id="second_id",
             label="second_output_label",
-            metadata=input.metadata | { "extra_key2": "extra_value2" },
+            metadata=input.metadata | {"extra_key2": "extra_value2"},
         )
 
     return catalyst
+
 
 @pytest.fixture
 def document():
@@ -51,6 +55,7 @@ def document():
         metadata={"key": "value"},
     )
 
+
 @pytest.fixture
 def fragment():
     return Fragment(
@@ -59,13 +64,13 @@ def fragment():
         metadata={"key": "fragment_value"},
     )
 
+
 @pytest.fixture(scope="function")
 def repository(tmpdir, document, fragment):
-    repository =  LocalRepository(path=Path(tmpdir))
+    repository = LocalRepository(path=Path(tmpdir))
     repository.store(fragment)
     repository.store(document)
     return repository
-
 
 
 def test_single_catalyst(single_step_catalyst, document):
@@ -77,9 +82,10 @@ def test_single_catalyst(single_step_catalyst, document):
     fragment = single_step_catalyst.repository.get("output_id")
     assert fragment.id == "output_id"
     assert fragment.label == "output_label"
-    assert fragment.metadata == document.metadata | { "extra_key": "extra_value" }
+    assert fragment.metadata == document.metadata | {"extra_key": "extra_value"}
 
     assert len(single_step_catalyst.repository.find()) == 2
+
 
 def test_double_catalyst(two_step_catalyst, document):
     assert len(two_step_catalyst.repository.find()) == 0
@@ -90,25 +96,25 @@ def test_double_catalyst(two_step_catalyst, document):
     fragment = two_step_catalyst.repository.get("output_id")
     assert fragment.id == "output_id"
     assert fragment.label == "output_label"
-    assert fragment.metadata == document.metadata | { "extra_key": "extra_value" }
+    assert fragment.metadata == document.metadata | {"extra_key": "extra_value"}
 
     fragment = two_step_catalyst.repository.get("second_id")
     assert fragment.id == "second_id"
     assert fragment.label == "second_output_label"
-    assert fragment.metadata == fragment.metadata | { "extra_key2": "extra_value2" }
+    assert fragment.metadata == fragment.metadata | {"extra_key2": "extra_value2"}
 
     assert len(two_step_catalyst.repository.find()) == 3
 
 
 def test_return_is_compliant_with_signature(catalyst, document):
     catalyst.repository.store(document)
-    
+
     @catalyst.operation()
     def simple(input: Document) -> Annotated[Fragment, "expected_label"]:
         return Fragment(
             id="output_id",
             label="wrong_label",
-            metadata=input.metadata | { "extra_key": "extra_value" },
+            metadata=input.metadata | {"extra_key": "extra_value"},
         )
 
     with pytest.raises(OperationError) as excinfo:
@@ -140,24 +146,32 @@ def test_processing_scope(catalyst):
         single: Single,
         multi: list[Multi],
     ) -> Annotated[Fragment, "output_same"]:
-        return Fragment.with_source(single, label="output_same", update_metadata={
-            "multi_size": len(multi),
-            "single": single.id,
-            "multi1": multi[0].id,
-            "multi2": multi[1].id,
-        })
+        return Fragment.with_source(
+            single,
+            label="output_same",
+            update_metadata={
+                "multi_size": len(multi),
+                "single": single.id,
+                "multi1": multi[0].id,
+                "multi2": multi[1].id,
+            },
+        )
 
     @catalyst.operation(scope="all")
     def op_all(
         single: Single,
         multi: list[Multi],
     ) -> Annotated[Fragment, "output_all"]:
-        return Fragment.with_source(single, label="output_all", update_metadata={
-            "multi_size": len(multi),
-            "single": single.id,
-            "multi": set((multi[0].id, multi[1].id, multi[2].id, multi[3].id)),
-        })
-    
+        return Fragment.with_source(
+            single,
+            label="output_all",
+            update_metadata={
+                "multi_size": len(multi),
+                "single": single.id,
+                "multi": set((multi[0].id, multi[1].id, multi[2].id, multi[3].id)),
+            },
+        )
+
     catalyst()
 
     outputs = catalyst.repository.find(FragmentSelector(fragment_type="Fragment", labels=["output_same"]))

@@ -43,13 +43,12 @@ def apply_content_understanding(
                 "signed_by_dispenser": {
                     "type": "string",
                     "method": "classify",
-                    "description": "Is the form signed by the dispenser?",  
+                    "description": "Is the form signed by the dispenser?",
                     "enum": [
                         "true",
                         "false",
                     ],
-                }
-
+                },
             },
         },
     }

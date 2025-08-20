@@ -9,7 +9,7 @@ METADATA = {
     "file_path": "/home/user/az-ai-catalyst/tests/data/test.pdf",
     "file_size": 92971,
     "mime_type": "chunk/pdf",
-    "page_nb" : 1,
+    "page_nb": 1,
 }
 
 
@@ -44,6 +44,7 @@ def test_document_deserialization(chunk):
     assert deserialized_chunk.id == chunk.id
     assert deserialized_chunk.label == "png"
     assert deserialized_chunk.metadata == {"key": "value"}
+
 
 def test_document_deserialization_with_vector(chunk):
     document_json = """{ 

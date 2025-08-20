@@ -14,24 +14,19 @@ from az_ai.catalyst.repository import (
 from az_ai.catalyst.schema import OperationsLogEntry
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture(scope="module")
 def azure_repository():
-    repository_url = os.environ.get("REPOSITORY_URL")
-    container_name = os.environ.get("REPOSITORY_CONTAINER_NAME")
-    if not repository_url or not container_name:
-        pytest.skip("Azure connection string or container name not set in environment variables")
-    # Use a unique container for isolation if needed
-    repo = AzureRepository(repository_url, container_name, credential=DefaultAzureCredential())
-    yield repo
-    try:
-        blob_service_client = BlobServiceClient(account_url=repository_url)
-        container_client = blob_service_client.get_container_client(container_name)
-        blobs = container_client.list_blobs()
-        for blob in blobs:
-            container_client.delete_blob(blob.name)
-        print(f"Cleaned up all test blobs in container {container_name}")
-    except Exception as e:
-        print(f"Warning: Failed to clean up Azure container: {e}")
+    account_url = os.environ.get("AZURE_STORAGE_ACCOUNT_URL")
+    if not account_url:
+        pytest.skip("AZURE_STORAGE_ACCOUNT_URL is not set. Skipping tests")
+
+    container_name = f"test-{uuid.uuid4()}"
+    credential = DefaultAzureCredential()
+    yield AzureRepository(account_url, container_name, credential)
+    blob_service_client = BlobServiceClient(account_url=account_url, credential=credential)
+    container_client = blob_service_client.get_container_client(container_name)
+    if container_client.exists():
+        container_client.delete_container()
 
 
 @pytest.fixture

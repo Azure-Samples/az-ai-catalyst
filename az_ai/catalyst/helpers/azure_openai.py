@@ -4,7 +4,9 @@ from az_ai.catalyst.catalyst import Catalyst
 from az_ai.catalyst.schema import Chunk, Fragment
 
 
-def create_embeddings(catalyst: Catalyst, fragment: Fragment, model: str = "text-embedding-3-small", **kwargs: dict[str, Any]) -> Chunk:
+def create_embeddings(
+    catalyst: Catalyst, fragment: Fragment, model: str = "text-embedding-3-small", **kwargs: dict[str, Any]
+) -> Chunk:
     """
     Create embeddings for the fragment.
 
@@ -15,13 +17,13 @@ def create_embeddings(catalyst: Catalyst, fragment: Fragment, model: str = "text
         **kwargs: Additional arguments that will be passed to Chunk.with_source()
 
     Returns:
-        Chunk: A new Chunk instance with the source set to the fragment, the vector set to the embeddings, 
+        Chunk: A new Chunk instance with the source set to the fragment, the vector set to the embeddings,
         content set to the fragment's content and kwargs applied.
     """
     response = catalyst.azure_openai_client.embeddings.create(
-                input=fragment.content_as_str(),
-                model=model,
-            )
+        input=fragment.content_as_str(),
+        model=model,
+    )
     embedding = response.data[0].embedding
 
     return Chunk.with_source(

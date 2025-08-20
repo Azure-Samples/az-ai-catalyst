@@ -43,14 +43,16 @@ mlflow.openai.autolog()
 
 
 class ItsaragSettings(CatalystSettings):
-    model_name: str = "gpt-4.1-2025-04-14"
+    inference_model_name: str = "gpt-4.1-2025-04-14"
+    embedding_model_name: str = "text-embedding-3-large"
     index_name: str = "itsarag"
     temperature: float = 0.0
     max_tokens: int = 2000
 
     def as_params(self) -> dict[str, Any]:
         return {
-            "model_name": self.model_name,
+            "inference_model_name": self.inference_model_name,
+            "embedding_model_name": self.embedding_model_name,
             "temperature": self.temperature,
             "max_tokens": self.max_tokens,
         }
@@ -60,7 +62,7 @@ class ItsaragSettings(CatalystSettings):
 # Catalyst definition
 #
 
-catalyst = az_ai.catalyst.Catalyst(settings_cls=ItsaragSettings, repository_url="/tmp/itsarag_repo")
+catalyst = az_ai.catalyst.Catalyst(settings_cls=ItsaragSettings)
 
 result = catalyst.search_index_client.create_or_update_index(
     index=SearchIndex(
@@ -220,7 +222,7 @@ def describe_figure(
     """)
 
     response = catalyst.azure_openai_client.chat.completions.create(
-        model=catalyst.settings.model_name,
+        model=catalyst.settings.inference_model_name,
         messages=[
             {"role": "system", "content": SYSTEM_CONTEXT},
             {
@@ -312,7 +314,7 @@ def embed(
             fragment=fragment,
             label="chunk",
             human_index=index + 1,
-            model="text-embedding-3-large",
+            model=catalyst.settings.embedding_model_name,
             metadata={
                 "file_name": fragment.metadata["file_name"],
                 "page_number": fragment.metadata["page_number"],

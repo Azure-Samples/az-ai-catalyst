@@ -148,7 +148,7 @@ def describe_figure(
     """)
 
     response = catalyst.azure_openai_client.chat.completions.create(
-        model=catalyst.settings.model_name,
+        model=catalyst.settings.inference_model_name,
         messages=[
             {"role": "system", "content": SYSTEM_CONTEXT},
             {
@@ -263,7 +263,7 @@ def embed(
             fragment=fragment,
             label="chunk",
             human_index=index + 1,
-            model="text-embedding-3-large",
+            model=catalyst.settings.embedding_model_name,
             metadata={
                 "file_name": fragment.metadata["file_name"],
                 "page_number": fragment.metadata["page_number"],

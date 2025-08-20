@@ -10,12 +10,10 @@ def markdown(catalyst: Catalyst, title: str, description: str = None) -> str:
     return "\n".join(
         [
             f"# {title}",
-        ] 
-        + ([] if description is None else [
-            "## Description", 
-            description])
+        ]
+        + ([] if description is None else ["## Description", description])
         + [
-            "## Diagram",       
+            "## Diagram",
             "```mermaid",
             "---",
             f"title: {title}",
@@ -24,12 +22,13 @@ def markdown(catalyst: Catalyst, title: str, description: str = None) -> str:
             "```",
             "## Operations documentation",
         ]
-
-        + [f"### {operation.name}\n\n{dedent(operation.func.__doc__ or "")}" 
-           "<details>\n<summary>Code</summary>\n\n"
-           f"```python\n{getsource(operation.func)}\n```\n\n"
-           "</details>\n"
-           for operation in catalyst.operations().values()]
+        + [
+            f"### {operation.name}\n\n{dedent(operation.func.__doc__ or '')}"
+            "<details>\n<summary>Code</summary>\n\n"
+            f"```python\n{getsource(operation.func)}\n```\n\n"
+            "</details>\n"
+            for operation in catalyst.operations().values()
+        ]
     )
 
 
