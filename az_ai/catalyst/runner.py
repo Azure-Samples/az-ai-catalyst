@@ -11,7 +11,6 @@ from az_ai.catalyst.schema import (
     OperationSpec,
 )
 
-
 class OperationError(Exception):
     pass
 
@@ -44,6 +43,7 @@ class CatalystRunner:
         inputs = [self.repository.find(input.selector()) for input in operation.input_specs]
 
         call_arguments = self._create_call_arguments(operation, inputs, operation.scope == "same")
+        #self._console.log(f"Call arguments for {operation.name}: {escape(str(call_arguments))}")
         for arguments in call_arguments:
             input_fragment_ids = self._input_fragment_ids_set(arguments)
             if self._skip_operation(input_fragment_ids, operation):

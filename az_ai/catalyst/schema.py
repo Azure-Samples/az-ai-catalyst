@@ -107,7 +107,13 @@ class Fragment(BaseModel):
             str: The base64 encoded content.
         """
         return base64.b64encode(self.content).decode("utf-8")
-
+    
+    def content_as_data_url(self) -> str:
+        """
+        Get the image data URL for the fragment.
+        """
+        return f"data:{self.mime_type};base64,{self.content_as_base64()}"
+    
     def __str__(self):
         return f"{self.id}:{self.__class__.__name__}[{self.label}, {self.human_file_name()}]"
 
@@ -244,12 +250,6 @@ class Chunk(Fragment):
 
 
 class ImageFragment(Fragment):
-    def content_as_data_url(self) -> str:
-        """
-        Get the image data URL for the fragment.
-        """
-        return f"data:{self.mime_type};base64,{self.content_as_base64()}"
-
     def set_content_from_image(self, image: Image, mime_type: str = None) -> Self:
         """
         Set the content (bytes) to the serialized version of the image.

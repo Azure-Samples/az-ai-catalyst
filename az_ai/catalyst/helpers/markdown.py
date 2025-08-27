@@ -19,19 +19,21 @@ def extract_code_block(markdown: str) -> str:
 
 
 class MarkdownFigureExtractor:
-    def extract(self, di_fragment: DocumentIntelligenceResult, figure_class: type = ImageFragment) -> list[Fragment]:
+    def extract(self, di_fragment: DocumentIntelligenceResult, figure_class: type = ImageFragment, min_dimension: int = 0.5) -> list[Fragment]:
         logger.info("Extracting figures from fragment: %s", di_fragment)
 
         self.document_intelligence_result = di_fragment.analyze_result()
         self.content: str = di_fragment.content_as_str()
+        self._min_dimension = min_dimension
 
         if not self.document_intelligence_result.figures:
             logger.info("No figures found in the document.")
             return []
 
         results = [
-            self._extract_figure_from_page(di_fragment, figure_index, figure, figure_class)
-            for figure_index, figure in enumerate(self.document_intelligence_result.figures)
+            frag
+            for i, fig in enumerate(self.document_intelligence_result.figures)
+            if (frag := self._extract_figure_from_page(di_fragment, i, fig, figure_class)) is not None
         ]
         return results
 
@@ -61,12 +63,29 @@ class MarkdownFigureExtractor:
         """
         logger.debug("Extracting figure index %d and id '%s'...", figure_index, figure.id)
         bounding_box, figure_content, figure_caption, page_number = self._extract_bounding_box(fragment, figure)
+        # Ensure bounding box is large enough to process (expected format: x0, y0, x1, y1)
+        x0, y0, x1, y1 = bounding_box
+        width = abs(x1 - x0)
+        height = abs(y1 - y0)
+
         logger.debug(
             "Figure extraction from page %s, content: %s, caption: %s, ",
             page_number,
             figure_content,
             figure_caption,
         )
+
+        if width < self._min_dimension and height < self._min_dimension:
+            logger.debug(
+                "Skipping figure id '%s' on page %s: bounding box too small (%.1f x %.1f < %dx%d)",
+                getattr(figure, "id", None),
+                page_number,
+                width,
+                height,
+                self._min_dimension,
+                self._min_dimension,
+            )
+            return None
 
         image = self._crop_image_from_page_image(
             fragment,
